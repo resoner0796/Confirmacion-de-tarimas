@@ -125,7 +125,8 @@ details summary { cursor:pointer; font-weight:bold; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+// --- 1. AJUSTE: Importamos query y where para poder filtrar ---
+import { getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc, Timestamp, query, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDtlj3ppT9WBGMR60SZx0TZmAo3BXQWDX0",
@@ -220,7 +221,7 @@ function mostrarAdministracion(){
   `);
   document.getElementById('btnAgregar').onclick=agregarUsuario;
   document.getElementById('btnSalir').onclick=cerrarSesion;
-  document.getElementById('btnConsultarTarimas').onclick=consultarTarimas;
+  document.getElementById('btnConsultarTarimas').onclick=consultarTarimas; // Esta es la función de Admin (ver todas)
   cargarUsuarios();
 }
 
@@ -284,6 +285,7 @@ function mostrarConfirmacionTarimas(){
       <ul id="listaConfirmadas"></ul>
       <hr>
       <button id="btnConfirmar" class="btn-primary">✅ Confirmar Tarima</button>
+      <button id="btnMisTarimas" class="btn-blue">📋 Ver Mis Tarimas Confirmadas</button>
       <button id="btnSalir" class="btn-danger">❌ Cerrar Sesión</button>
       <div id="statusMessage"></div>
     </div>
@@ -293,6 +295,8 @@ function mostrarConfirmacionTarimas(){
   document.getElementById('codigoTarima').addEventListener('keypress',e=>{ if(e.key==='Enter') escanearCaja(); });
   document.getElementById('btnConfirmar').onclick=confirmarTarima;
   document.getElementById('btnSalir').onclick=cerrarSesion;
+  // --- 2. AJUSTE: Agregamos el listener para el nuevo botón ---
+  document.getElementById('btnMisTarimas').onclick = consultarMisTarimas;
   actualizarContador();
 }
 
@@ -352,6 +356,7 @@ async function escanearCaja(){
 
 async function confirmarTarima(){
   if(!tarimaActual||cajasTarima.length===0){ updateStatus("❌ No hay tarima activa o sin cajas",'error'); return; }
+  // Aquí se guarda en "tarimas_confirmadas" y se incluye el gafete. ¡Esto está correcto!
   await addDoc(collection(db,"tarimas_confirmadas"),{
     folio: tarimaActual.folio,
     gafete: usuarioActual.gafete,
@@ -380,14 +385,79 @@ async function generarNuevoFolio(){
   return `TAR-${(max+1).toString().padStart(3,'0')}`;
 }
 
-// --- CONSULTAR TARIMAS ---
+// --- 3. AJUSTE: Nueva función para que el empleado consulte SUS tarimas ---
+async function consultarMisTarimas() {
+  if (!usuarioActual) {
+    abrirModal("<h3>Error</h3><p>No se ha podido identificar al usuario.</p>");
+    return;
+  }
+  
+  const gafeteActual = usuarioActual.gafete;
+  const tarimasRef = collection(db, "tarimas_confirmadas");
+  
+  // Creamos la consulta para FILTRAR por el gafete del usuario actual
+  const q = query(tarimasRef, where("gafete", "==", gafeteActual));
+  
+  const snapshot = await getDocs(q);
+  
+  let html = "<h3>Mis Tarimas Confirmadas</h3>";
+  
+  if (snapshot.empty) {
+    html += "<p>No has confirmado ninguna tarima todavía.</p>";
+  } else {
+    html += "<ul>";
+    // Ordenamos por fecha, de más nueva a más vieja (opcional pero útil)
+    const tarimas = snapshot.docs.map(doc => doc.data()).sort((a, b) => b.fecha.seconds - a.fecha.seconds);
+    
+    tarimas.forEach(t => {
+      const folio = t.folio;
+      const cajas = t.cajas || [];
+      const grouped = {};
+
+      cajas.forEach(c => {
+        const orden = c.codigoCaja ? c.codigoCaja.slice(2, 12) : 'ORDEN-DESCONOCIDA';
+        if (!grouped[orden]) grouped[orden] = [];
+        grouped[orden].push(c.codigoCaja || 'CAJA-DESCONOCIDA');
+      });
+
+      let detallesHTML = "";
+      Object.entries(grouped).forEach(([orden, bx]) => {
+        detallesHTML += `<details>
+          <summary>Orden: ${orden} (${bx.length} cajas)</summary>
+          <ul>${bx.map(b => `<li>${b}</li>`).join('')}</ul>
+        </details>`;
+      });
+      
+      const fecha = t.fecha ? new Date(t.fecha.seconds * 1000).toLocaleString() : 'Fecha no registrada';
+      
+      html += `<li class="tarimaBox">
+        <b>${folio}</b>
+        <details>
+          <summary>Detalles</summary>
+          <p>Fecha y Hora: ${fecha}</p>
+          ${detallesHTML}
+        </details>
+      </li>`;
+    });
+    html += "</ul>";
+  }
+  
+  abrirModal(html);
+}
+
+
+// --- CONSULTAR TARIMAS (ADMIN) ---
+// Esta función (consultarTarimas) es la original para el Admin, que ve TODO. La dejamos tal cual.
 async function consultarTarimas(){
+  // Esta consulta jala TODA la colección, sin filtrar. Correcto para el Admin.
   const snapshot=await getDocs(collection(db,"tarimas_confirmadas"));
-  let html="<h3>Tarimas Confirmadas</h3><ul>";
-  snapshot.forEach(docu=>{
-    const t=docu.data();
+  let html="<h3>Tarimas Confirmadas (Todas)</h3><ul>";
+  
+  const tarimas = snapshot.docs.map(doc => doc.data()).sort((a, b) => b.fecha.seconds - a.fecha.seconds);
+
+  tarimas.forEach(t => {
     const folio=t.folio;
-    const creador=t.gafete;
+    const creador=t.usuario || t.gafete; // Mostramos nombre o gafete
     const cajas=t.cajas||[];
     const grouped={};
     cajas.forEach(c=>{
@@ -404,11 +474,10 @@ async function consultarTarimas(){
     });
     const fecha=t.fecha ? new Date(t.fecha.seconds*1000).toLocaleString() : '';
     html+=`<li class="tarimaBox">
-      <b>${folio}</b>
+      <b>${folio}</b> (Creado por: ${creador})
       <details>
         <summary>Detalles</summary>
         <p>Fecha y Hora: ${fecha}</p>
-        <p>Gafete: ${creador}</p>
         ${detallesHTML}
       </details>
     </li>`;
