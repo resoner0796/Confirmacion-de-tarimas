@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <title>Tarimas Confirmadas - CORNING</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="manifest" href="manifest.json">
+
+<meta name="theme-color" content="#0f2027">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tarimas">
+<link rel="apple-touch-icon" href="icon-192x192.PNG">
+
 <style>
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -169,12 +179,11 @@ function abrirModalConfirmacion(mensaje, onConfirmCallback) {
 }
 
 function updateStatus(msg,type='info'){
-  // --- AJUSTE 2: Hacemos que la función de status funcione también dentro del modal
-  let el = document.getElementById('statusMessage'); // Busca en la tarjeta principal
+  let el = document.getElementById('statusMessage');
   if (!el) {
-    el = document.getElementById('statusMessageModal'); // Si no, busca en el modal
+    el = document.getElementById('statusMessageModal');
   }
-  if(!el) return; // Si no encuentra ninguno, sale
+  if(!el) return;
   
   el.textContent=msg;
   if(type==='success') el.style.color='#4CAF50';
@@ -249,7 +258,6 @@ async function verificarGafete(){
 }
 
 // --- ADMIN ---
-// --- AJUSTE 2: Limpiamos la vista de admin ---
 function mostrarAdministracion(){
   setView(`
     <p class="brand-title">CORNING</p>
@@ -257,21 +265,17 @@ function mostrarAdministracion(){
       <h2>⚙️ Administración</h2>
       
       <button id="btnGestionUsuarios" class="btn-blue">👨‍💼 Gestión de Usuarios</button>
-      
       <button id="btnConsultarTarimas" class="btn-blue">📋 Consultar Tarimas Confirmadas</button>
       <button id="btnSalir" class="btn-danger">❌ Cerrar Sesión</button>
       <div id="statusMessage"></div>
     </div>
   `);
   
-  // AJUSTE 2: Añadimos el listener para el nuevo botón
   document.getElementById('btnGestionUsuarios').onclick = mostrarGestionUsuarios;
   document.getElementById('btnConsultarTarimas').onclick=consultarTarimas;
   document.getElementById('btnSalir').onclick=cerrarSesion;
-  // Ya no llamamos a cargarUsuarios() aquí
 }
 
-// --- AJUSTE 2: Nueva función que abre el modal de Gestión de Usuarios ---
 function mostrarGestionUsuarios() {
   const html = `
     <h2>👨‍💼 Gestión de Usuarios</h2>
@@ -290,16 +294,14 @@ function mostrarGestionUsuarios() {
   
   abrirModal(html);
   
-  // Adjuntamos los listeners a los elementos que ACABAMOS de crear en el modal
   document.getElementById('btnAgregar').onclick = agregarUsuario;
-  cargarUsuarios(); // Ahora llamamos a cargarUsuarios DESPUÉS de que el modal existe
+  cargarUsuarios();
 }
 
 
 async function cargarUsuarios(){
-  // Esta función ahora buscará 'listaUsuarios' dentro del modal
   const lista=document.getElementById('listaUsuarios');
-  if (!lista) return; // Si no estamos en el modal, no hace nada
+  if (!lista) return;
   
   lista.innerHTML='<li>Cargando...</li>';
   const snapshot=await getDocs(collection(db,"users"));
@@ -317,7 +319,6 @@ async function cargarUsuarios(){
 }
 
 async function agregarUsuario(){
-  // Esta función ahora usa los campos del modal
   const nombre=document.getElementById('nombreUsuario').value.trim();
   const gafete=document.getElementById('gafeteUsuario').value.trim();
   const rol=document.getElementById('rolUsuario').value;
@@ -326,7 +327,7 @@ async function agregarUsuario(){
   updateStatus('✅ Usuario agregado.','success');
   document.getElementById('nombreUsuario').value='';
   document.getElementById('gafeteUsuario').value='';
-  cargarUsuarios(); // Recarga la lista de usuarios dentro del modal
+  cargarUsuarios();
 }
 window.eliminarUsuario=async function(id){
   if(id===SUPER_ADMIN_GAFETE){ alert("No puedes eliminar al Super Admin."); return; }
@@ -388,8 +389,8 @@ function mostrarConfirmacionTarimas(){
   document.getElementById('btnEscanear').onclick=escanearCaja;
   document.getElementById('codigoTarima').addEventListener('keypress',e=>{ if(e.key==='Enter') escanearCaja(); });
   document.getElementById('btnConfirmar').onclick=confirmarTarima;
-  document.getElementById('btnSalir').onclick=cerrarSesion;
-  document.getElementById('btnMisTarimas').onclick = consultarMisTarimas; // Se mantiene
+  document.getElementById('btnSalir').onclick=cerrarSesión;
+  document.getElementById('btnMisTarimas').onclick = consultarMisTarimas;
   actualizarContador();
 }
 
@@ -507,9 +508,8 @@ async function generarNuevoFolio(){
   return `TAR-${(max+1).toString().padStart(3,'0')}`;
 }
 
-// --- AJUSTE 1: REFACTORIZACIÓN LÓGICA DE TRAZABILIDAD ---
+// --- LÓGICA DE TRAZABILIDAD (REUTILIZABLE) ---
 
-// 1.A. Función para cargar el histórico (reutilizable)
 async function getHistoricoMap() {
   let historicoMap = new Map();
   try {
@@ -526,12 +526,11 @@ async function getHistoricoMap() {
   return historicoMap;
 }
 
-// 1.B. Función que construye el HTML de las tarimas (reutilizable)
 function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
   let html = `<h3>${isAdmin ? 'Tarimas Confirmadas (Todas)' : 'Mis Tarimas Confirmadas'}</h3>`;
   
   if (!tarimasDocs || tarimasDocs.length === 0) {
-    html += "<p>No se encontraron tarimas.</p>";
+    html += `<p>No se encontraron tarimas${isAdmin ? '' : ' confirmadas por ti'}.</p>`;
     return html;
   }
   
@@ -582,12 +581,10 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
     const fecha = formatarFechaHora(t.fecha);
     
     html += `<li class="tarimaBox">`;
-    // El admin ve quién creó y el botón de borrar
     if (isAdmin) {
       html += `<b>${folio}</b> (Creado por: ${creador})
         <button class="btn-danger" onclick="confirmarEliminarTarima('${t.id}')" style="float:right; width:auto; padding: 5px 10px; margin-top:0; font-size: 12px;">❌</button>`;
     } else {
-    // El empleado solo ve el folio
       html += `<b>${folio}</b>`;
     }
     
@@ -603,43 +600,35 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
   return html;
 }
 
-// 1.C. Función de Empleado (AHORA USA LA LÓGICA NUEVA)
+// CONSULTAR MIS TARIMAS (Empleado)
 async function consultarMisTarimas() {
   if (!usuarioActual) {
     abrirModal("<h3>Error</h3><p>No se ha podido identificar al usuario.</p>");
     return;
   }
   
-  abrirModal("<h3>Cargando Mis Tarimas...</h3>"); // Feedback de carga
+  abrirModal("<h3>Cargando Mis Tarimas...</h3>");
   
   const gafeteActual = usuarioActual.gafete;
   const tarimasRef = collection(db, "tarimas_confirmadas");
   
-  // 1. Cargar histórico
   const historicoMap = await getHistoricoMap();
   
-  // 2. Cargar tarimas filtradas
   const q = query(tarimasRef, where("gafete", "==", gafeteActual));
   const snapshot = await getDocs(q);
   
-  // 3. Construir HTML (pasando 'false' para isAdmin)
   const html = buildTarimasHtml(snapshot.docs, historicoMap, false);
   
   abrirModal(html);
 }
 
 
-// 1.D. Función de Admin (AHORA USA LA LÓGICA NUEVA)
+// CONSULTAR TARIMAS (Admin)
 async function consultarTarimas(){
-  abrirModal("<h3>Cargando Todas las Tarimas...</h3>"); // Feedback de carga
+  abrirModal("<h3>Cargando Todas las Tarimas...</h3>");
 
-  // 1. Cargar histórico
   const historicoMap = await getHistoricoMap();
-
-  // 2. Cargar TODAS las tarimas
   const snapshot = await getDocs(collection(db, "tarimas_confirmadas"));
-  
-  // 3. Construir HTML (pasando 'true' para isAdmin)
   const html = buildTarimasHtml(snapshot.docs, historicoMap, true);
   
   abrirModal(html);
@@ -650,6 +639,22 @@ function cerrarSesion(){ usuarioActual=null; mostrarLogin(); }
 
 // --- INICIO ---
 mostrarLogin();
+</script>
+
+<script>
+  // Comprueba si el navegador soporta Service Workers
+  if ('serviceWorker' in navigator) {
+    // Registra el SW después de que la página cargue
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(registration => {
+          console.log('✅ Service Worker registrado con éxito:', registration.scope);
+        })
+        .catch(error => {
+          console.error('❌ Error al registrar el Service Worker:', error);
+        });
+    });
+  }
 </script>
 </body>
 </html>
