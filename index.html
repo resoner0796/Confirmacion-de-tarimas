@@ -374,7 +374,6 @@ async function crearNuevaTarima(){
   actualizarContador();
 }
 
-// --- 1. AJUSTE: renderTarima ahora incluye un botón de eliminar ---
 function renderTarima(){
   const lista=document.getElementById('listaConfirmadas');
   const grouped={};
@@ -386,7 +385,6 @@ function renderTarima(){
   let html='';
   Object.entries(grouped).forEach(([orden,bx])=>{
     
-    // Mapeamos cada BX para incluir el botón de eliminar
     const bxHtmlList = bx.map(b => `
       <li class="newScan">${b}
         <span onclick="removerCaja('${b}')" style="float:right; cursor:pointer; color: #FFCDD2; font-weight: bold; padding: 0 5px; font-size: 14px;">❌</span>
@@ -409,22 +407,15 @@ function actualizarContador(){
   if(counter) { counter.textContent=cajasTarima.length; counter.classList.add('counterFlash'); setTimeout(()=>{counter.classList.remove('counterFlash');},500);}
 }
 
-// --- 1. NUEVA FUNCIÓN: removerCaja ---
-// Esta función elimina una caja de la tarima actual (antes de confirmar)
 function removerCaja(codigo) {
-  // Filtramos el array para quitar la caja seleccionada
   cajasTarima = cajasTarima.filter(c => c.codigoCaja !== codigo);
-  // Volvemos a renderizar la lista y el contador
   renderTarima();
   actualizarContador();
-  // Damos feedback
   showScanFeedback(`🗑️ ${codigo} eliminado de la tarima`, 'error');
 }
-// La adjuntamos a 'window' para que el onclick la pueda encontrar
 window.removerCaja = removerCaja;
 
 
-// (eliminarCaja ya no se usa, pero la dejamos por si acaso)
 function eliminarCaja(codigo){
   cajasTarima=cajasTarima.filter(c=>c.codigoCaja!==codigo);
   renderTarima();
@@ -464,7 +455,6 @@ async function confirmarTarima(){
   });
   updateStatus('');
   
-  // --- 2. AJUSTE: Modal de éxito con <br> y estilo ---
   abrirModal(`<p style="font-size: 1.2em; text-align: center; line-height: 1.5;">
     ✅ Tarima ${tarimaActual.folio}<br>Confirmada exitosamente!
   </p>`);
@@ -548,23 +538,25 @@ async function consultarMisTarimas() {
 }
 
 
-// --- 3. AJUSTE: CONSULTAR TARIMAS (ADMIN) con Trazabilidad ---
+// --- AJUSTE: CONSULTAR TARIMAS (ADMIN) con Trazabilidad (GR y receivedAt) ---
 async function consultarTarimas(){
   
-  // --- PASO 3.A: Cargamos el histórico de logística PRIMERO ---
+  // --- PASO 3.A: Cargamos el histórico de logística (Colección 'boxID_historico')
   let historicoMap = new Map();
   try {
     const historicoSnapshot = await getDocs(collection(db, "boxID_historico"));
     historicoSnapshot.forEach(doc => {
-      // Asumimos que el ID del doc es el BX y que tiene un campo 'fecha'
-      historicoMap.set(doc.id, doc.data().fecha);
+      // --- CAMBIO: Guardamos un objeto con 'fecha' (usando receivedAt) y 'gr'
+      historicoMap.set(doc.id, { 
+        fecha: doc.data().receivedAt, 
+        gr: doc.data().gr 
+      });
     });
   } catch (e) {
     console.error("Error al cargar 'boxID_historico': ", e);
-    // Si falla, el mapa quedará vacío y todo aparecerá como 'No recibido'
   }
 
-  // --- PASO 3.B: Cargamos las tarimas confirmadas (como antes) ---
+  // --- PASO 3.B: Cargamos las tarimas confirmadas
   const snapshot=await getDocs(collection(db,"tarimas_confirmadas"));
   let html="<h3>Tarimas Confirmadas (Todas)</h3><ul>";
   
@@ -585,20 +577,23 @@ async function consultarTarimas(){
         grouped[orden].push(c.codigoCaja || 'N/A');
     });
     
-    // --- PASO 3.C: Construimos el HTML de los BX con la lógica de colores ---
+    // --- PASO 3.C: Construimos el HTML de los BX con la lógica de colores y GR
     let detallesHTML="";
     Object.entries(grouped).forEach(([orden,bx_array])=>{
       
-      let bxHtmlList = ''; // Aquí guardaremos los <li> de esta orden
+      let bxHtmlList = '';
       
       bx_array.forEach(bxCode => {
-        const historicoEntry = historicoMap.get(bxCode); // Buscamos el BX en el mapa
+        const historicoEntry = historicoMap.get(bxCode); // Buscamos el BX
         
         if (historicoEntry) {
           // ENCONTRADO (Verde)
-          const fechaRecibido = formatarFechaHora(historicoEntry);
+          // --- CAMBIO: Leemos 'historicoEntry.fecha' y 'historicoEntry.gr'
+          const fechaRecibido = formatarFechaHora(historicoEntry.fecha);
+          const grRecibido = historicoEntry.gr || 'N/A'; // Obtenemos el GR
+          
           bxHtmlList += `<li style="color: #90EE90; font-weight: bold; background: rgba(76, 175, 80, 0.2);">${bxCode} 
-            <span style="font-size: 0.9em; color: #C8E6C9;">(Recibido: ${fechaRecibido})</span>
+            <span style="font-size: 0.9em; color: #C8E6C9;">(Recibido: ${fechaRecibido}, GR: ${grRecibido})</span>
           </li>`;
         } else {
           // NO ENCONTRADO (Rojo)
@@ -608,7 +603,6 @@ async function consultarTarimas(){
         }
       });
       
-      // Añadimos la lista de <li> al <details>
       detallesHTML+=`<details>
         <summary>Orden: ${orden} (${bx_array.length} cajas)</summary>
         <ul>${bxHtmlList}</ul>
