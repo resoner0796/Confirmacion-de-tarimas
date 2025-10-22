@@ -116,7 +116,6 @@ details summary { cursor:pointer; font-weight:bold; }
 <body>
 <div id="app"></div>
 
-<!-- MODAL -->
 <div id="modalContainer">
   <div id="modalContent">
     <span id="modalClose">✖️</span>
@@ -126,7 +125,7 @@ details summary { cursor:pointer; font-weight:bold; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc, query, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDtlj3ppT9WBGMR60SZx0TZmAo3BXQWDX0",
@@ -145,21 +144,19 @@ let tarimaActual = null;
 let cajasTarima = [];
 const appDiv = document.getElementById('app');
 
-function abrirModal(html){ 
-  document.getElementById('modalBody').innerHTML=html; 
-  document.getElementById('modalContainer').style.display='flex'; 
+function abrirModal(html){
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalContainer').style.display = 'flex';
 }
-document.getElementById('modalClose').onclick = ()=>{ 
-  document.getElementById('modalContainer').style.display='none'; 
-};
+document.getElementById('modalClose').onclick = ()=>{ document.getElementById('modalContainer').style.display='none'; }
 
-function updateStatus(msg,type='info'){ 
-  const el=document.getElementById('statusMessage'); 
-  if(!el) return; 
-  el.textContent=msg; 
-  if(type==='success') el.style.color='#4CAF50'; 
-  else if(type==='error') el.style.color='#FF5252'; 
-  else el.style.color='#9CA3AF'; 
+function updateStatus(msg,type='info'){
+  const el=document.getElementById('statusMessage');
+  if(!el) return;
+  el.textContent=msg;
+  if(type==='success') el.style.color='#4CAF50';
+  else if(type==='error') el.style.color='#FF5252';
+  else el.style.color='#9CA3AF';
 }
 function setView(html){ appDiv.innerHTML=html; }
 
@@ -174,12 +171,12 @@ function mostrarLogin(){
       <div id="statusMessage"></div>
     </div>
   `);
-  document.getElementById('btnLogin').onclick=verificarGafete;
+  document.getElementById('btnLogin').onclick = verificarGafete;
   document.getElementById('gafeteInput').addEventListener('keypress',e=>{ if(e.key==='Enter') verificarGafete(); });
 }
 
 async function verificarGafete(){
-  const gafete=document.getElementById('gafeteInput').value.trim();
+  const gafete = document.getElementById('gafeteInput').value.trim();
   if(!gafete){ updateStatus("Ingresa tu gafete",'error'); return; }
   try{
     const snapshot = await getDocs(collection(db,"users"));
@@ -196,11 +193,11 @@ async function verificarGafete(){
       if(usuarioActual.rol==="administrador") mostrarAdministracion();
       else mostrarConfirmacionTarimas();
     },1000);
-  } catch(e){ console.error(e); updateStatus("Error al conectar con Firestore.",'error'); }
+  }catch(e){ console.error(e); updateStatus("Error al conectar con Firestore",'error'); }
 }
 
 // --- ADMIN ---
-async function mostrarAdministracion(){
+function mostrarAdministracion(){
   setView(`
     <p class="brand-title">CORNING</p>
     <div class="card">
@@ -230,18 +227,18 @@ async function mostrarAdministracion(){
 async function cargarUsuarios(){
   const lista=document.getElementById('listaUsuarios');
   lista.innerHTML='<li>Cargando...</li>';
-  const snapshot = await getDocs(collection(db,"users"));
+  const snapshot=await getDocs(collection(db,"users"));
   let html='';
   snapshot.forEach(docu=>{
-    const data=docu.data();
-    html+=`<li>${data.nombre} (${data.rol}) - Gafete: ${data.gafete}
+    const d=docu.data();
+    html+=`<li>${d.nombre} (${d.rol}) - Gafete: ${d.gafete}
       <div class="user-actions">
-        <button class="btn-green" onclick="editarUsuario('${docu.id}')">Editar</button>
-        <button class="btn-danger" onclick="eliminarUsuario('${docu.id}')">Eliminar</button>
+        <button class="btn-green" onclick="editarUsuario('${docu.id}')">✏️</button>
+        <button class="btn-danger" onclick="eliminarUsuario('${docu.id}')">❌</button>
       </div>
     </li>`;
   });
-  lista.innerHTML=html || '<li>No hay usuarios registrados.</li>';
+  lista.innerHTML=html||'<li>No hay usuarios registrados.</li>';
 }
 
 async function agregarUsuario(){
@@ -249,186 +246,180 @@ async function agregarUsuario(){
   const gafete=document.getElementById('gafeteUsuario').value.trim();
   const rol=document.getElementById('rolUsuario').value;
   if(!nombre || !gafete){ updateStatus('❌ Completa todos los campos.','error'); return; }
-  await setDoc(doc(db,"users",gafete),{nombre,gafete,rol});
+  await setDoc(doc(db,"users",gafete),{ nombre, gafete, rol });
   updateStatus('✅ Usuario agregado.','success');
   document.getElementById('nombreUsuario').value='';
   document.getElementById('gafeteUsuario').value='';
   cargarUsuarios();
 }
-
-async function editarUsuario(id){
-  const docRef = doc(db,"users",id);
-  const docSnap = await getDocs(query(collection(db,"users"),orderBy("gafete")));
-  let usuario=null;
-  docSnap.forEach(d=>{ if(d.id===id) usuario=d.data(); });
-  if(!usuario) return;
-  const nuevoNombre = prompt("Nuevo nombre:",usuario.nombre);
-  const nuevoRol = prompt("Nuevo rol (empleado/administrador):",usuario.rol);
-  if(!nuevoNombre || !nuevoRol) return;
-  await setDoc(docRef,{nombre:nuevoNombre,gafete:usuario.gafete,rol:nuevoRol});
-  cargarUsuarios();
-}
-
 window.eliminarUsuario=async function(id){
   if(id===SUPER_ADMIN_GAFETE){ alert("No puedes eliminar al Super Admin."); return; }
   await deleteDoc(doc(db,"users",id));
   cargarUsuarios();
 }
+window.editarUsuario=async function(id){
+  const docu=await getDocs(collection(db,"users"));
+  const userDoc=docu.docs.find(d=>d.id===id);
+  if(!userDoc) return;
+  const data=userDoc.data();
+  const newNombre=prompt("Editar nombre:",data.nombre);
+  const newRol=prompt("Editar rol (empleado/administrador):",data.rol);
+  if(newNombre && newRol){ await setDoc(doc(db,"users",id),{ nombre:newNombre, gafete:data.gafete, rol:newRol }); cargarUsuarios(); }
+}
 
-// --- REGISTRO TARIMAS ---
+// --- TARIMAS ---
 function mostrarConfirmacionTarimas(){
   setView(`
     <p class="brand-title">CORNING</p>
     <div class="card">
       <h2>✅ Registrar Tarima</h2>
-      <p id="scanFeedback"></p>
       <button id="btnNuevaTarima" class="btn-orange">➕ Crear Nueva Tarima</button>
       <h4 id="folioActual"></h4>
+      <div id="scanFeedback"></div>
       <input id="codigoTarima" placeholder="Escanear BX...">
       <button id="btnEscanear" class="btn-green">Agregar Caja</button>
-      <span id="counter">Total: 0</span>
+      <p>Contador de cajas: <span id="counter">0</span></p>
       <hr>
       <h4>Cajas agrupadas por orden:</h4>
       <ul id="listaConfirmadas"></ul>
       <hr>
       <button id="btnConfirmar" class="btn-primary">✅ Confirmar Tarima</button>
-      <button id="btnVerTarimas" class="btn-blue">📋 Ver Tarimas Confirmadas</button>
       <button id="btnSalir" class="btn-danger">❌ Cerrar Sesión</button>
       <div id="statusMessage"></div>
     </div>
   `);
-
   document.getElementById('btnNuevaTarima').onclick=crearNuevaTarima;
   document.getElementById('btnEscanear').onclick=escanearCaja;
   document.getElementById('codigoTarima').addEventListener('keypress',e=>{ if(e.key==='Enter') escanearCaja(); });
   document.getElementById('btnConfirmar').onclick=confirmarTarima;
-  document.getElementById('btnVerTarimas').onclick=consultarTarimasHoy;
   document.getElementById('btnSalir').onclick=cerrarSesion;
-
-  tarimaActual=null;
-  cajasTarima=[];
-  renderTarima();
+  actualizarContador();
 }
 
 async function crearNuevaTarima(){
-  updateStatus("");
   const folio=await generarNuevoFolio();
   tarimaActual={folio,cajas:[]};
   cajasTarima=[];
-  document.getElementById("folioActual").textContent=`${folio} lista para escanear.`;
+  document.getElementById('folioActual').textContent=`${folio} lista para escanear`;
+  updateStatus('');
   renderTarima();
+  actualizarContador();
 }
 
 function renderTarima(){
-  const lista=document.getElementById("listaConfirmadas");
+  const lista=document.getElementById('listaConfirmadas');
   const grouped={};
-  cajasTarima.forEach(caja=>{
-    const numeroOrden=caja.codigoCaja.substring(2,12); // 10 dígitos después de BX
-    if(!grouped[numeroOrden]) grouped[numeroOrden]=[];
-    grouped[numeroOrden].push(caja.codigoCaja);
+  cajasTarima.forEach(c=>{
+    const orden=c.codigoCaja.slice(2,12);
+    if(!grouped[orden]) grouped[orden]=[];
+    grouped[orden].push(c.codigoCaja);
   });
-  let html="";
-  Object.entries(grouped).forEach(([orden,cajas])=>{
-    const ids=cajas.map(c=>`<li>${c} <button onclick="eliminarCaja('${c}')" class="btn-danger">❌</button></li>`).join("");
+  let html='';
+  Object.entries(grouped).forEach(([orden,bx])=>{
     html+=`<li>
-      Orden: ${orden} 
       <details>
-        <summary>Ver Cajas (${cajas.length})</summary>
-        <ul>${ids}</ul>
+        <summary>Orden: ${orden} (${bx.length} cajas)</summary>
+        <ul>${bx.map(b=>`<li class="newScan">${b}</li>`).join('')}</ul>
       </details>
     </li>`;
   });
-  lista.innerHTML=html;
+  lista.innerHTML=html||'<li>Sin cajas escaneadas</li>';
   actualizarContador();
 }
 
 function actualizarContador(){
-  const el=document.getElementById("counter");
-  el.textContent=`Total: ${cajasTarima.length}`;
-  el.classList.add("counterFlash");
-  setTimeout(()=>{el.classList.remove("counterFlash")},500);
+  const counter=document.getElementById('counter');
+  if(counter) { counter.textContent=cajasTarima.length; counter.classList.add('counterFlash'); setTimeout(()=>{counter.classList.remove('counterFlash');},500);}
 }
 
-function escanearCaja(){
-  const input=document.getElementById("codigoTarima");
-  const codigo=input.value.trim();
-  if(!codigo){ updateStatus("Escanea una caja",'error'); return; }
-  cajasTarima.push({codigoCaja:codigo});
-  updateStatus(`✅ Caja ${codigo} escaneada`,'success');
-  input.value='';
-  renderTarima();
-}
-
-window.eliminarCaja=function(codigo){
+function eliminarCaja(codigo){
   cajasTarima=cajasTarima.filter(c=>c.codigoCaja!==codigo);
   renderTarima();
 }
+window.eliminarCaja=eliminarCaja;
+
+async function escanearCaja(){
+  const codigo=document.getElementById('codigoTarima').value.trim().toUpperCase();
+  if(!codigo.startsWith("BX")){ updateStatus("❌ El código debe empezar con BX",'error'); return; }
+  const orden=codigo.slice(2,12);
+  cajasTarima.push({codigoCaja:codigo, numeroOrden:orden});
+  renderTarima();
+  document.getElementById('codigoTarima').value='';
+  const feedback=document.getElementById('scanFeedback');
+  feedback.textContent=`✅ ${codigo} escaneada`;
+  setTimeout(()=>{feedback.textContent='';},1800);
+}
 
 async function confirmarTarima(){
-  if(!tarimaActual){ updateStatus('❌ Crea primero una tarima','error'); return; }
-  if(cajasTarima.length===0){ updateStatus('❌ Escanea al menos una caja','error'); return; }
-  const folio=tarimaActual.folio;
-  const fecha=Timestamp.now();
-  await addDoc(collection(db,"tarimas"),{folio,fecha,usuario:usuarioActual.nombre,cajas:cajasTarima});
-  abrirModal(`<h3>✅ Tarima ${folio} confirmada!</h3><p>Total de cajas: ${cajasTarima.length}</p>`);
-  tarimaActual=null;
-  cajasTarima=[];
-  document.getElementById("folioActual").textContent='';
+  if(!tarimaActual||cajasTarima.length===0){ updateStatus("❌ No hay tarima activa o sin cajas",'error'); return; }
+  await addDoc(collection(db,"tarimas_confirmadas"),{
+    folio: tarimaActual.folio,
+    gafete: usuarioActual.gafete,
+    usuario: usuarioActual.nombre,
+    fecha: Timestamp.now(),
+    cajas:cajasTarima
+  });
+  updateStatus('');
+  abrirModal(`<p>✅ Tarima ${tarimaActual.folio} confirmada exitosamente!</p>`);
+  cajasTarima=[]; tarimaActual=null;
+  document.getElementById('folioActual').textContent='';
   renderTarima();
-}
-
-async function consultarTarimas(){
-  const snapshot=await getDocs(collection(db,"tarimas"));
-  let html="<h3>Tarimas Confirmadas</h3><ul>";
-  snapshot.forEach(docu=>{
-    const t=docu.data();
-    const fecha=new Date(t.fecha.seconds*1000).toLocaleString();
-    const cajas=t.cajas||[];
-    const cajasHTML=cajas.map(c=>`<li>${c.codigoCaja}</li>`).join("");
-    html+=`<li class="tarimaBox">
-      <b>${t.folio}</b> - ${fecha} - ${t.usuario}
-      <details>
-        <summary>Detalles (${cajas.length} cajas)</summary>
-        <ul>${cajasHTML}</ul>
-      </details>
-    </li>`;
-  });
-  html+="</ul>";
-  abrirModal(html);
-}
-
-async function consultarTarimasHoy(){
-  const snapshot=await getDocs(collection(db,"tarimas"));
-  let html="<h3>Tarimas Confirmadas</h3><ul>";
-  snapshot.forEach(docu=>{
-    const t=docu.data();
-    const fecha=new Date(t.fecha.seconds*1000).toLocaleString();
-    const cajasHTML=t.cajas.map(c=>`<li>${c.codigoCaja}</li>`).join("");
-    html+=`<li class="tarimaBox">
-      <b>${t.folio}</b> - ${fecha}
-      <details>
-        <summary>Ver detalles (${t.cajas.length} cajas)</summary>
-        <ul>${cajasHTML}</ul>
-      </details>
-    </li>`;
-  });
-  html+="</ul>";
-  abrirModal(html);
+  actualizarContador();
 }
 
 async function generarNuevoFolio(){
-  const snapshot=await getDocs(collection(db,"tarimas"));
-  const count=snapshot.size+1;
-  return `TAR-${String(count).padStart(3,'0')}`;
+  const snapshot=await getDocs(collection(db,"tarimas_confirmadas"));
+  let max=0;
+  snapshot.forEach(docu=>{
+    const folio=docu.data().folio;
+    if(folio && folio.startsWith("TAR-")){
+      const n=parseInt(folio.split("-")[1]);
+      if(n>max) max=n;
+    }
+  });
+  return `TAR-${(max+1).toString().padStart(3,'0')}`;
 }
 
-function cerrarSesion(){
-  usuarioActual=null;
-  tarimaActual=null;
-  cajasTarima=[];
-  mostrarLogin();
+// --- CONSULTAR TARIMAS ---
+async function consultarTarimas(){
+  const snapshot=await getDocs(collection(db,"tarimas_confirmadas"));
+  let html="<h3>Tarimas Confirmadas</h3><ul>";
+  snapshot.forEach(docu=>{
+    const t=docu.data();
+    const folio=t.folio;
+    const creador=t.gafete;
+    const cajas=t.cajas||[];
+    const grouped={};
+    cajas.forEach(c=>{
+      const orden=c.codigoCaja.slice(2,12);
+      if(!grouped[orden]) grouped[orden]=[];
+      grouped[orden].push(c.codigoCaja);
+    });
+    let detallesHTML="";
+    Object.entries(grouped).forEach(([orden,bx])=>{
+      detallesHTML+=`<details>
+        <summary>Orden: ${orden} (${bx.length} cajas)</summary>
+        <ul>${bx.map(b=>`<li>${b}</li>`).join('')}</ul>
+      </details>`;
+    });
+    const fecha=t.fecha ? new Date(t.fecha.seconds*1000).toLocaleString() : '';
+    html+=`<li class="tarimaBox">
+      <b>${folio}</b>
+      <details>
+        <summary>Detalles</summary>
+        <p>Fecha y Hora: ${fecha}</p>
+        <p>Gafete: ${creador}</p>
+        ${detallesHTML}
+      </details>
+    </li>`;
+  });
+  html+="</ul>";
+  abrirModal(html);
 }
 
+function cerrarSesion(){ usuarioActual=null; mostrarLogin(); }
+
+// --- INICIO ---
 mostrarLogin();
 </script>
 </body>
