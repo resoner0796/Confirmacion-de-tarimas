@@ -1,934 +1,291 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Recolección - Pro Final</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-        <style>
-        /* Estilos Generales y de Fondo */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-            color: #FFFFFF;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            flex-direction: column;
-            background-attachment: fixed;
-        }
-
-        .brand-title {
-            font-family: 'Times New Roman', Times, serif;
-            color: white;
-            font-size: clamp(40px, 3vw, 40px);
-            font-weight: normal;
-            text-align: center;
-            width: 100%;
-            letter-spacing: 2px;
-            margin-bottom: 5px;
-            padding: 0;
-        }
-
-        /* Estilo Glassmorphism para la Tarjeta Principal */
-        .card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 25px;
-            margin: 20px auto;
-            max-width: 600px;
-            width: 90%;
-            border-radius: 20px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            text-align: center;
-        }
-
-        /* Títulos y texto */
-        h2, h3, h4 { margin: 10px 0; font-weight: 500; }
-        h2 { font-size: 1.8em; }
-        h3 { font-size: 1.4em; }
-        small { color: #cccccc; }
-        hr { border-color: rgba(255,255,255,0.2); margin: 20px 0; border-style: solid; border-width: 1px 0 0 0;}
-
-
-        /* Estilos de Inputs y Selects con efecto Glass */
-        input, select {
-            padding: 15px;
-            width: calc(100% - 30px);
-            margin: 12px 0;
-            font-size: 16px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: rgba(255, 255, 255, 0.15);
-            color: #FFFFFF;
-            box-sizing: border-box;
-            transition: all 0.2s ease;
-        }
-        input:focus, select:focus {
-            outline: none;
-            border: 1px solid rgba(0, 122, 255, 0.8);
-            box-shadow: 0 0 10px rgba(0, 122, 255, 0.5);
-        }
-        input::placeholder { color: #a0a0a0; }
-
-        /* Estilos de Botones con efecto Glass */
-        button {
-            padding: 15px 20px;
-            margin: 10px 0;
-            cursor: pointer;
-            font-size: 16px;
-            border-radius: 12px;
-            border: 1px solid transparent;
-            width: 100%;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            color: #FFFFFF;
-        }
-        button.btn-primary { background-color: rgba(0, 122, 255, 0.6); border-color: rgba(0, 122, 255, 0.8); }
-        button.btn-green { background-color: rgba(76, 175, 80, 0.6); border-color: rgba(76, 175, 80, 0.8); }
-        button.btn-orange { background-color: rgba(255, 193, 7, 0.6); border-color: rgba(255, 193, 7, 0.8); color: #000; }
-        button.btn-danger { background-color: rgba(255, 59, 48, 0.6); border-color: rgba(255, 59, 48, 0.8); }
-        button.btn-secondary { background-color: rgba(108, 117, 125, 0.5); border-color: rgba(108, 117, 125, 0.7); }
-        button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); }
-        button:active { transform: translateY(0); filter: brightness(0.9); }
-
-        /* Estilos de Listas para UI Limpia y Desplegable */
-        { padding-left: 0; list-style: none; }
-        .tarima-item {
-            margin-bottom: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            text-align: left;
-            overflow: hidden;
-            word-wrap: break-word;
-            flex-direction: column;
-             align-items: flex-start;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-        .tarima-item:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
-        .tarima-item-header, .tarima-item-header-simple {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            font-weight: bold;
-            font-size: 1.1em;
-        }
-        
-        .tarima-detalles-desplegables {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .edit-delete-btns { 
-            display: flex; 
-            gap: 10px; 
-            margin-top: 15px;
-        }
-        .edit-delete-btns button { 
-            width: auto; 
-            padding: 8px 15px; 
-            margin: 0;
-            flex-grow: 1;
-        }
-        .list-item-btn {
-            width: auto !important;
-            padding: 8px 15px !important;
-            margin: 0 !important;
-            flex-shrink: 0;
-        }
-        
-        .workflow-status { font-size: 0.9em; width: 100%; margin-top: 8px; font-weight: bold; color: #E5E7EB;}
-        
-        .workflow-timestamps { font-size: 0.8em; color: #9CA3AF; margin-top: 8px; }
-        .workflow-timestamps ul {
-            list-style: none;
-            padding-left: 10px;
-            margin: 5px 0 0 0;
-        }
-        .workflow-timestamps li {
-            background: none;
-            padding: 2px 0;
-            margin-bottom: 0;
-        }
-        
-        .cajas-desplegables {
-            list-style: none;
-            padding: 15px;
-            margin-top: 15px;
-            background-color: rgba(0, 0, 0, 0.25);
-            border-radius: 8px;
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
-        }
-        .cajas-desplegables h4 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            font-size: 1em;
-            font-weight: bold;
-        }
-        .cajas-desplegables ul {
-             padding-left: 0;
-             list-style: none;
-        }
-        .cajas-desplegables li {
-            background: transparent;
-            padding: 8px 5px;
-            margin-bottom: 0;
-            font-size: 0.9em;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        /* --- ERROR 'OS' CORREGIDO AQUÍ --- */
-        /* Se eliminó el 'OS' y las líneas duplicadas que rompían el CSS */
-
-        .cajas-desplegables li:last-child {
-            border-bottom: none;
-        }
-
-
-        /* Mensajes de Estado */
-        #statusMessage { padding: 12px; margin: 15px 0; border-radius: 10px; font-weight: bold; text-align: center; }
-        .status-success { background: rgba(52, 199, 89, 0.7); border: 1px solid rgba(52, 199, 89, 1); }
-        .status-info { background: rgba(90, 200, 250, 0.7); border: 1px solid rgba(90, 200, 250, 1); }
-        .status-error { background: rgba(255, 59, 48, 0.7); border: 1px solid rgba(255, 59, 48, 1); }
-
-        /* Estilos para Modales Personalizados */
-        .modal-backdrop {
-            position: fixed; top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-            display: flex; justify-content: center; align-items: center;
-            z-index: 200; opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
-        }
-        .modal-content {
-            background: rgba(50, 50, 50, 0.7);
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 25px; max-width: 400px;
-            width: 90%; border-radius: 20px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            text-align: center;
-            transform: scale(0.9); transition: transform 0.3s ease;
-        }
-        .modal-backdrop.visible { opacity: 1; pointer-events: all; }
-        .modal-backdrop.visible .modal-content { transform: scale(1); }
-        .modal-header h3 { margin: 0 0 15px 0; }
-        .modal-body p { margin: 0; line-height: 1.5; }
-        .modal-body div { margin-bottom: 0; }
-        .modal-body input { margin-top: 0; }
-        .modal-footer { display: flex; gap: 10px; margin-top: 20px;}
-        .modal-footer button { margin: 0; flex-grow: 1; }
-
-        /* Estilos del Modal del Escáner */
-        #scannerModal {
-            position: fixed; top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            display: none; justify-content: center; align-items: center;
-            z-index: 100; flex-direction: column;
-        }
-        #scannerModal.active { display: flex; }
-        .scanner-frame-container {
-            position: relative; width: 90%; max-width: 400px;
-            aspect-ratio: 1 / 1; border: 2px solid rgba(0, 122, 255, 0.8);
-            border-radius: 15px; overflow: hidden;
-            box-shadow: 0 0 20px rgba(0, 122, 255, 0.5);
-        }
-        #preview { width: 100%; height: 100%; object-fit: cover; }
-        .scanner-frame::before {
-            content: ''; position: absolute; top: 0; left: 0;
-            width: 100%; height: 3px; background-color: #ff3b30;
-            animation: scan-line 2.5s infinite ease-in-out;
-            box-shadow: 0 0 10px #ff3b30;
-        }
-        @keyframes scan-line { 0%, 100% { top: 0; } 50% { top: calc(100% - 3px); } }
-
-        /* Reportes */
-        .report-filters {
-            display: grid; gap: 10px; margin-bottom: 20px;
-            grid-template-columns: 1fr;
-        }
-        @media (min-width: 600px) { .report-filters { grid-template-columns: repeat(2, 1fr); } }
-        #reporteResumen {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-            padding: 15px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }
-        .resumen-item {
-            background: rgba(255,255,255,0.1);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 0.9em;
-        }
-        
-        .pantalla {
-          display: none;
-          width: 100%;
-          min-height: 100vh;
-          transition: opacity 0.5s ease-out;
-        }
-        .pantalla.activa { display: flex; flex-direction: column; }
-
-        #splashScreen {
-            align-items: center;
-            justify-content: center;
-        }
-        .splash-content {
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-        .splash-logo-container {
-            border-radius: 25px;
-            margin: 20px 0;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-        .splash-logo {
-            width: 150px;
-            height: auto;
-            display: block;
-            border-radius: 15px;
-        }
-        .splash-loading {
-            font-size: 1.2rem;
-            color: #9CA3AF;
-            letter-spacing: 2px;
-        }
-        .splash-loading .dot {
-            animation: blink-dot 1.4s infinite;
-            opacity: 0;
-        }
-        .splash-loading .dot:nth-child(2) { animation-delay: 0.2s; }
-        .splash-loading .dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes blink-dot { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
-
-    </style>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <meta charset="UTF-8">
+  <title>Tarimas Confirmadas - CORNING</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #FFFFFF;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      flex-direction: column;
+    }
+    .brand-title {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 42px;
+      color: white;
+      margin-bottom: 10px;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 25px;
+      border-radius: 20px;
+      text-align: center;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    input, select {
+      width: calc(100% - 20px);
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+    button {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-top: 10px;
+      font-weight: bold;
+      color: #fff;
+    }
+    .btn-primary { background-color: rgba(0,122,255,0.6); }
+    .btn-green { background-color: rgba(76,175,80,0.6); }
+    .btn-danger { background-color: rgba(255,59,48,0.6); }
+    .btn-orange { background-color: rgba(255,193,7,0.7); color: #000; }
+    #statusMessage { margin-top: 15px; font-weight: bold; }
+    ul { list-style: none; padding: 0; text-align: left; }
+    li { background: rgba(255,255,255,0.1); margin-bottom: 6px; padding: 8px; border-radius: 8px; }
+  </style>
 </head>
 <body>
-    
-    <div id="splashScreen" class="pantalla activa">
-        <div class="splash-content">
-             <p class="brand-title" style="font-size: clamp(40px, 3vw, 60px);">CORNING</p>
-             <div class="splash-logo-container">
-                              </div>
-             <p class="splash-loading">Cargando<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></p>
-        </div>
-    </div>
-    
-    <div id="pantallaPrincipal" class="pantalla"></div>
-    <div id="modalContainer"></div>
-    <div id="scannerModal">
-        <div class="scanner-frame-container">
-            <video id="preview"></video>
-            <div class="scanner-frame"></div>
-        </div>
-        <button id="closeScannerBtn" class="btn-danger" style="width: 90%; max-width: 400px; margin-top: 20px;">❌ Cerrar</button>
-    </div>
-<script>
 
-    document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false });
+  <div id="app"></div>
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyCPTEu73s2rVIm2VsdTk59kVIOyi1jeyu8",
-        authDomain: "panel-logistica.firebaseapp.com",
-        databaseURL: "https://panel-logistica-default-rtdb.firebaseio.com",
-        projectId: "panel-logistica",
-        storageBucket: "panel-logistica.appspot.com",
-        messagingSenderId: "38365879945",
-        appId: "1:38365879945:web:e2f3590fe77f013dba3058"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { 
+      getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc,
+      query, where, orderBy, Timestamp 
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-    let empleadoActual = null, currentTarima = null, codeReader = null;
-    let scanning = false, modo = "", cantidadPiezasActual = null;
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const SUPER_ADMIN_GAFETE = "528734";
-    let appConfig = { contrasenaTarimas: "BORRAR25", cantidadesPiezas: "1,5,6,12,24,34" };
+    // --- CONFIGURACIÓN FIREBASE ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyDtlj3ppT9WBGMR60SZx0TZmAo3BXQWDX0",
+      authDomain: "rastreador-de-ordenes.firebaseapp.com",
+      projectId: "rastreador-de-ordenes",
+      storageBucket: "rastreador-de-ordenes.firebasestorage.app",
+      messagingSenderId: "956052823395",
+      appId: "1:956052823395:web:ca6127628e1dcf423cc756"
+    };
 
-    // --- SISTEMA DE MODALES PERSONALIZADO ---
-    function mostrarModal(type, title, message, callback) {
-        const modalContainer = document.getElementById('modalContainer');
-        const id = 'modal-' + Date.now();
-        let bodyHtml = (message.startsWith('<')) ? message : `<p>${message}</p>`;
-        let footerHtml = '';
-        const closeModal = (value) => {
-            const modalEl = document.getElementById(id);
-            modalEl.classList.remove('visible');
-            setTimeout(() => { modalEl.remove(); if (callback) callback(value); }, 300);
-        };
-        if (type === 'prompt') {
-            bodyHtml += `<input type="password" id="${id}-input" class="modal-input">`;
-            footerHtml = `<button class="btn-secondary">Cancelar</button><button class="btn-primary">Aceptar</button>`;
-        } else if (type === 'confirm') {
-            footerHtml = `<button class="btn-secondary">Cancelar</button><button class="btn-primary">Aceptar</button>`;
-        } else {
-            footerHtml = `<button class="btn-primary">Aceptar</button>`;
-        }
-        modalContainer.innerHTML += `<div class="modal-backdrop" id="${id}"><div class="modal-content"><div class="modal-header"><h3>${title}</h3></div><div class="modal-body">${bodyHtml}</div><div class="modal-footer">${footerHtml}</div></div></div>`;
-        const modalElement = document.getElementById(id);
-        const buttons = modalElement.querySelectorAll('button');
-        if (type === 'prompt') {
-            buttons[0].onclick = () => closeModal(null);
-            buttons[1].onclick = () => closeModal(document.getElementById(`${id}-input`).value);
-            document.getElementById(`${id}-input`).focus();
-        } else if (type === 'confirm') {
-            buttons[0].onclick = () => closeModal(false);
-            buttons[1].onclick = () => closeModal(true);
-        } else {
-            buttons[0].onclick = () => closeModal(true);
-        }
-        setTimeout(() => modalElement.classList.add('visible'), 10);
-    }
-    
-    // --- FUNCIONES GENERALES Y DE UI ---
-    function updateStatus(message, type) {
-        const statusDiv = document.getElementById("statusMessage");
-        if (statusDiv) { statusDiv.textContent = message; statusDiv.className = `status-${type}`; }
-    }
+    const appFB = initializeApp(firebaseConfig);
+    const db = getFirestore(appFB);
 
-    function activarPantalla(id){
-        document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('activa'));
-        const pantalla = document.getElementById(id);
-        if(pantalla) {
-            pantalla.style.display = 'flex';
-            pantalla.classList.add('activa');
-        }
-    }
+    const SUPER_ADMIN_GAFETE = "528734";
+    let usuarioActual = null;
+    const appDiv = document.getElementById('app');
 
-    function mostrarPantallaInicio() {
-        const contenedor = document.getElementById("pantallaPrincipal");
-        contenedor.innerHTML = `<p class="brand-title">CORNING</p><div class="card"><h2>Recolección de Tarimas</h2><p>Seleccione una opción para comenzar</p><button onclick="iniciarFlujo('recoleccion')" class="btn-primary">📦 Recolección</button><button onclick="iniciarFlujo('administracion')" class="btn-orange">⚙️ Administración</button><button onclick="iniciarFlujoVerificacion()" class="btn-secondary">🔎 Verificación</button><button onclick="iniciarFlujo('confirmacion')" class="btn-green">✅ Registrar tarima confirmada</button><div id="statusMessage" style="margin-top: 20px;"></div></div>`;
-    }
+    // --- UI UTILIDADES ---
+    function updateStatus(msg, type = 'info') {
+      const el = document.getElementById('statusMessage');
+      if (!el) return;
+      el.textContent = msg;
+      if (type === 'success') el.style.color = '#4CAF50';
+      else if (type === 'error') el.style.color = '#FF5252';
+      else el.style.color = '#9CA3AF';
+    }
 
-    function cerrarSesion() { empleadoActual = null; mostrarPantallaInicio(); }
-    
-    function determinarTurno(date = new Date()) {
-        const ahora = new Date(date);
-        const esTurno1 = (ahora.getHours() > 6 || (ahora.getHours() === 6 && ahora.getMinutes() >= 30)) && (ahora.getHours() < 18 || (ahora.getHours() === 18 && ahora.getMinutes() < 30));
-        return esTurno1 ? 'Turno 1' : 'Turno 2';
-    }
-    function obtenerFechaTurno(date = new Date()) {
-        const ahora = new Date(date);
-        let fecha = new Date(ahora);
-        if (determinarTurno(ahora) === 'Turno 2' && ahora.getHours() < 6) {
-            fecha.setDate(ahora.getDate() - 1);
-        }
-        return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
-    }
-    
-    function formatoFechaHora(isoString) {
-        if (!isoString) return '';
-        const date = new Date(isoString);
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = String(date.getFullYear()).slice(-2);
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${day}/${month}/${year} ${hours}:${minutes}`;
-    }
+    function setView(html) {
+      appDiv.innerHTML = html;
+    }
 
-    function toggleDetalles(id) {
-        const el = document.getElementById(id);
-        if (el) {
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        }
-    }
+    // --- LOGIN ---
+    function mostrarLogin() {
+      setView(`
+        <p class="brand-title">CORNING</p>
+        <div class="card">
+          <h2>🔐 Iniciar Sesión</h2>
+          <p>Escanea o ingresa tu número de gafete:</p>
+          <input id="gafeteInput" type="text" placeholder="Número de gafete">
+          <button id="btnLogin" class="btn-primary">Ingresar</button>
+          <div id="statusMessage"></div>
+        </div>
+      `);
+      document.getElementById('btnLogin').onclick = verificarGafete;
+      document.getElementById('gafeteInput').addEventListener('keypress', e => {
+        if (e.key === 'Enter') verificarGafete();
+      });
+    }
 
-    // --- SISTEMA DE ACCESO Y AUTENTICACIÓN ---
-    function iniciarFlujo(flujo) {
-        const titulos = { recoleccion: '📦 Recolección', administracion: '⚙️ Administración', confirmacion: '✅ Confirmar Tarima' };
-        document.getElementById("pantallaPrincipal").innerHTML = `<p class="brand-title">CORNING</p><div class="card"><h2>${titulos[flujo] || 'Iniciar Sesión'} - Iniciar Sesión</h2><p>Escanee su gafete para continuar.</p><div id="statusMessage"></div><input type="text" id="gafeteInput" placeholder="Escanear o ingresar gafete">${isMobile ? `<button id="btnEscGafete" class="btn-primary">📷 Escanear Gafete</button>` : ""}<button onclick="mostrarPantallaInicio()" class="btn-secondary">⬅️ Regresar</button></div>`;
-        updateStatus("Esperando escaneo de gafete...", 'info');
-        const input = document.getElementById("gafeteInput");
-        input.addEventListener("keypress", e => { if (e.key === "Enter") verificarAcceso(input.value.trim(), flujo); });
-        if (isMobile) document.getElementById("btnEscGafete").addEventListener("click", () => iniciarEscaneo(`gafete-${flujo}`));
-    }
+    async function verificarGafete() {
+      const gafete = document.getElementById('gafeteInput').value.trim();
+      if (!gafete) { updateStatus("Ingresa tu gafete", 'error'); return; }
 
-    function verificarAcceso(gafete, flujo) {
-        db.ref('users/' + gafete).once('value').then(snapshot => {
-            const user = snapshot.val();
-            let rol = user ? user.rol : null;
-            db.ref('users').once('value').then(usersSnapshot => {
-                if (!usersSnapshot.exists() && gafete === SUPER_ADMIN_GAFETE) rol = 'administrador';
-                if (!rol) { updateStatus("❌ Acceso denegado.", 'error'); setTimeout(mostrarPantallaInicio, 2000); return; }
-                if (flujo === 'administracion' && rol !== 'administrador') { updateStatus("❌ No tiene permisos.", 'error'); setTimeout(mostrarPantallaInicio, 2000); return; }
-                empleadoActual = { id: gafete, rol: rol, nombre: user ? user.nombre : 'Super Admin' };
-                updateStatus(`¡Hola, ${empleadoActual.nombre}!`, 'success');
-                setTimeout(() => {
-                    if (flujo === 'recoleccion') mostrarPantallaOpcionesRecoleccion();
-                    else if (flujo === 'administracion') mostrarPantallaAdministracion();
-                        else if (flujo === 'confirmacion') mostrarPantallaConfirmacion();
-                }, 1500);
-            });
-        }).catch(err => updateStatus('❌ Error de conexión.', 'error'));
-    }
-
-    // --- MÓDULO DE ADMINISTRACIÓN (Con Parámetros) ---
-    function mostrarPantallaAdministracion() {
-        document.getElementById("pantallaPrincipal").innerHTML = `<p class="brand-title">CORNING</p><div class="card" style="max-width: 700px;"><h2>⚙️ Administración</h2><div id="statusMessage"></div><h3>Gestión de Usuarios</h3><div style="text-align: left; margin-bottom: 10px;"><input type="text" id="adminGafeteInput" placeholder="Número de Gafete"><input type="text" id="adminNombreInput" placeholder="Nombre del Empleado"><select id="adminRolSelect"><option value="recolector">Recolector</option><option value="administrador">Administrador</option></select></div><button onclick="guardarUsuario()" class="btn-green">💾 Guardar Usuario</button><ul id="listaUsuarios" style="max-height: 200px; overflow-y: auto; margin-top:15px;"></ul><hr><h3>Parámetros del Sistema</h3><div style="text-align: left;"><label for="paramContrasena">Contraseña para Editar/Eliminar Tarimas:</label><input type="text" id="paramContrasena"><label for="paramCantidades">Cantidades de Piezas Válidas (separadas por coma):</label><input type="text" id="paramCantidades" placeholder="Ej: 1,5,6,12,24,34"></div><button onclick="guardarConfiguracion()" class="btn-primary">💾 Guardar Parámetros</button><hr><button onclick="cerrarSesion()" class="btn-danger">❌ Salir</button></div>`;
-        cargarUsuarios();
-        cargarConfiguracion();
-    }
-    
-    function cargarUsuarios() {
-        const listaEl = document.getElementById("listaUsuarios");
-        listaEl.innerHTML = '<li>Cargando...</li>';
-        db.ref('users').once('value').then(snapshot => {
-            if (!snapshot.exists()) { listaEl.innerHTML = '<li>No hay usuarios registrados.</li>'; return; }
-            let html = '';
-            snapshot.forEach(userSnapshot => {
-                const user = userSnapshot.val();
-                html += `<li class="tarima-item"><div><b>${user.nombre}</b> (${user.rol})<br><small>Gafete: ${userSnapshot.key}</small></div></li>`;
-            });
-            listaEl.innerHTML = html;
-        });
-    }
-
-    function guardarUsuario() {
-        const gafete = document.getElementById('adminGafeteInput').value.trim();
-        const nombre = document.getElementById('adminNombreInput').value.trim();
-        if (!gafete || !nombre) { updateStatus('❌ Complete todos los campos.', 'error'); return; }
-        db.ref('users/' + gafete).set({ nombre: nombre, rol: document.getElementById('adminRolSelect').value }).then(() => {
-            updateStatus('✅ Usuario guardado.', 'success');
-            document.getElementById('adminGafeteInput').value = '';
-            document.getElementById('adminNombreInput').value = '';
-            cargarUsuarios();
-        }).catch(err => updateStatus('❌ Error al guardar.', 'error'));
-    }
-
-    function eliminarUsuario(gafete) {
-        if (gafete === empleadoActual.id) { mostrarModal('alert', 'Acción no permitida', 'No puedes eliminarte a ti mismo.'); return; }
-        mostrarModal('confirm', 'Confirmar', `¿Eliminar al usuario con gafete ${gafete}?`, (confirmed) => {
-            if (confirmed) {
-                db.ref('users/' + gafete).remove().then(() => {
-                    updateStatus('✅ Usuario eliminado.', 'success');
-                    cargarUsuarios();
-                });
-            }
-        });
-    }
-    
-    function cargarConfiguracion() {
-        db.ref('configuracion').once('value').then(snapshot => {
-            if (snapshot.exists()) {
-                appConfig = snapshot.val();
-                if(document.getElementById('paramContrasena')) {
-                    document.getElementById('paramContrasena').value = appConfig.contrasenaTarimas || '';
-                    document.getElementById('paramCantidades').value = appConfig.cantidadesPiezas || '';
-                }
-            }
-        });
-    }
-
-    function guardarConfiguracion() {
-        const contrasena = document.getElementById('paramContrasena').value.trim();
-        const cantidades = document.getElementById('paramCantidades').value.trim();
-        if (!contrasena || !cantidades) { updateStatus('❌ Ambos campos son requeridos.', 'error'); return; }
-        db.ref('configuracion').set({ contrasenaTarimas: contrasena, cantidadesPiezas: cantidades }).then(() => {
-            appConfig.contrasenaTarimas = contrasena; appConfig.cantidadesPiezas = cantidades;
-            updateStatus('✅ Parámetros guardados.', 'success');
-            mostrarModal('alert', 'Éxito', 'Los parámetros han sido actualizados.');
-        }).catch(err => updateStatus('❌ Error al guardar.', 'error'));
-    }
-
-    // --- (INICIO) NUEVO MÓDULO DE CONFIRMACIÓN DE TARIMAS ---
-
-    function mostrarPantallaConfirmacion() {
-        document.getElementById("pantallaPrincipal").innerHTML = `
-            <p class="brand-title">CORNING</p>
-            <div class="card">
-                <h2>✅ Registrar Tarima Confirmada</h2>
-                <h4>Hola, <b>${empleadoActual.nombre}</b></h4>
-                <p>Escanee el código de la tarima (BX) para confirmarla.</p>
-                <div id="statusMessage"></div>
-                <input type="text" id="tarimaConfirmadaInput" placeholder="Escanear Tarima (BX...)">
-                ${isMobile ? `<button id="btnEscConfirmar" class="btn-primary">📷 Escanear Tarima</button>` : ""}
-                <hr>
-                <h4>Confirmadas Hoy (por ti):</h4>
-                <ul id="listaConfirmadasHoy" style="max-height: 200px; overflow-y: auto; padding: 0;"></ul>
-                <button onclick="cerrarSesion()" class="btn-danger">❌ Salir</button>
-            </div>`;
-        
-        updateStatus("Esperando escaneo de tarima...", 'info');
-        
-        const input = document.getElementById("tarimaConfirmadaInput");
-        input.addEventListener("keypress", e => { 
-            if (e.key === "Enter") procesarConfirmacion(e.target.value.trim()); 
+      try {
+        const snapshot = await getDocs(collection(db, "users"));
+        let userData = null;
+        snapshot.forEach(docu => {
+          const data = docu.data();
+          if (data.gafete === gafete) userData = data;
         });
-        
-        if (isMobile) {
-            document.getElementById("btnEscConfirmar").addEventListener("click", () => iniciarEscaneo("tarima-confirmacion"));
+
+        if (!userData && gafete !== SUPER_ADMIN_GAFETE) {
+          updateStatus("❌ Usuario no encontrado.", 'error');
+          return;
         }
-        
+
+        if (gafete === SUPER_ADMIN_GAFETE && !userData) {
+          userData = { nombre: "Super Admin", gafete, rol: "administrador" };
+          await setDoc(doc(db, "users", gafete), userData);
+        }
+
+        usuarioActual = userData;
+        updateStatus(`Bienvenido ${userData.nombre}`, 'success');
+        setTimeout(() => {
+          if (usuarioActual.rol === "administrador") mostrarAdministracion();
+          else mostrarConfirmacionTarimas();
+        }, 1000);
+      } catch (e) {
+        console.error(e);
+        updateStatus("Error al conectar con Firestore.", 'error');
+      }
+    }
+
+    // --- ADMINISTRACIÓN ---
+    async function mostrarAdministracion() {
+      setView(`
+        <p class="brand-title">CORNING</p>
+        <div class="card">
+          <h2>⚙️ Administración</h2>
+          <input id="nombreUsuario" placeholder="Nombre del empleado">
+          <input id="gafeteUsuario" placeholder="Número de gafete">
+          <select id="rolUsuario">
+            <option value="empleado">Empleado</option>
+            <option value="administrador">Administrador</option>
+          </select>
+          <button id="btnAgregar" class="btn-green">💾 Agregar Usuario</button>
+          <hr>
+          <h4>Usuarios Registrados:</h4>
+          <ul id="listaUsuarios"></ul>
+          <hr>
+          <button id="btnSalir" class="btn-danger">❌ Cerrar Sesión</button>
+          <div id="statusMessage"></div>
+        </div>
+      `);
+      document.getElementById('btnAgregar').onclick = agregarUsuario;
+      document.getElementById('btnSalir').onclick = cerrarSesion;
+      cargarUsuarios();
+    }
+
+    async function cargarUsuarios() {
+      const lista = document.getElementById('listaUsuarios');
+      lista.innerHTML = '<li>Cargando...</li>';
+      const snapshot = await getDocs(collection(db, "users"));
+      let html = '';
+      snapshot.forEach(docu => {
+        const data = docu.data();
+        html += `<li>${data.nombre} (${data.rol}) - Gafete: ${data.gafete}
+        <button class="btn-danger" style="margin-top:5px;" onclick="eliminarUsuario('${docu.id}')">Eliminar</button></li>`;
+      });
+      lista.innerHTML = html || '<li>No hay usuarios registrados.</li>';
+    }
+
+    async function agregarUsuario() {
+      const nombre = document.getElementById('nombreUsuario').value.trim();
+      const gafete = document.getElementById('gafeteUsuario').value.trim();
+      const rol = document.getElementById('rolUsuario').value;
+      if (!nombre || !gafete) { updateStatus('❌ Completa todos los campos.', 'error'); return; }
+      await setDoc(doc(db, "users", gafete), { nombre, gafete, rol });
+      updateStatus('✅ Usuario agregado.', 'success');
+      document.getElementById('nombreUsuario').value = '';
+      document.getElementById('gafeteUsuario').value = '';
+      cargarUsuarios();
+    }
+
+    window.eliminarUsuario = async function(id) {
+      if (id === SUPER_ADMIN_GAFETE) { alert("No puedes eliminar al Super Admin."); return; }
+      await deleteDoc(doc(db, "users", id));
+      cargarUsuarios();
+    }
+
+    // --- REGISTRO DE TARIMAS CONFIRMADAS ---
+    function mostrarConfirmacionTarimas() {
+      setView(`
+        <p class="brand-title">CORNING</p>
+        <div class="card">
+          <h2>✅ Registrar Tarima Confirmada</h2>
+          <h4>Hola, ${usuarioActual.nombre}</h4>
+          <input id="codigoTarima" placeholder="Escanear o ingresar BX...">
+          <button id="btnConfirmar" class="btn-green">Confirmar</button>
+          <hr>
+          <h4>Confirmadas Hoy:</h4>
+          <ul id="listaConfirmadas"></ul>
+          <hr>
+          <button id="btnSalir" class="btn-danger">❌ Cerrar Sesión</button>
+          <div id="statusMessage"></div>
+        </div>
+      `);
+      document.getElementById('btnConfirmar').onclick = confirmarTarima;
+      document.getElementById('codigoTarima').addEventListener('keypress', e => {
+        if (e.key === 'Enter') confirmarTarima();
+      });
+      document.getElementById('btnSalir').onclick = cerrarSesion;
+      cargarConfirmadasHoy();
+    }
+
+    async function confirmarTarima() {
+      const codigo = document.getElementById('codigoTarima').value.trim();
+      if (!codigo.toUpperCase().startsWith('BX')) {
+        updateStatus("❌ El código debe empezar con 'BX'.", 'error');
+        return;
+      }
+      try {
+        await addDoc(collection(db, "tarimas_confirmadas"), {
+          tarimaId: codigo,
+          usuario: usuarioActual.nombre,
+          gafete: usuarioActual.gafete,
+          fechaHora: Timestamp.now()
+        });
+        updateStatus(`✅ Tarima ${codigo} confirmada.`, 'success');
+        document.getElementById('codigoTarima').value = '';
         cargarConfirmadasHoy();
+      } catch (err) {
+        console.error(err);
+        updateStatus("❌ Error al guardar.", 'error');
+      }
     }
 
-    function procesarConfirmacion(codigoTarima) {
-        const input = document.getElementById("tarimaConfirmadaInput");
-        
-        // Validación (case-insensitive) tal como la pediste
-        if (!codigoTarima.toUpperCase().startsWith('BX')) {
-            updateStatus("❌ Error: El código debe empezar con 'BX'.", 'error');
-            if (input) input.value = "";
-            return;
+    async function cargarConfirmadasHoy() {
+      const lista = document.getElementById('listaConfirmadas');
+      lista.innerHTML = '<li>Cargando...</li>';
+      const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+      const mañana = new Date(hoy); mañana.setDate(mañana.getDate() + 1);
+      const q = query(collection(db, "tarimas_confirmadas"), orderBy("fechaHora", "desc"));
+      const snapshot = await getDocs(q);
+      let html = "";
+      snapshot.forEach(docu => {
+        const d = docu.data();
+        if (d.gafete === usuarioActual.gafete) {
+          const fecha = d.fechaHora.toDate();
+          if (fecha >= hoy && fecha < mañana) {
+            html += `<li>${d.tarimaId} — ${fecha.toLocaleTimeString()}</li>`;
+          }
         }
-        
-        updateStatus("Procesando...", 'info');
-        
-        const data = {
-            tarimaId: codigoTarima,
-            usuario: {
-                id: empleadoActual.id,
-                nombre: empleadoActual.nombre
-            },
-            fechaHora: new Date().toISOString()
-        };
-
-        // Guardar en la nueva "colección" (ruta) de RTDB
-        db.ref('tarimas_confirmadas').push().set(data).then(() => {
-            updateStatus(`✅ Tarima ${codigoTarima} confirmada.`, 'success');
-            if (input) input.value = "";
-            cargarConfirmadasHoy(); // Refresh the list
-        }).catch(err => {
-            updateStatus('❌ Error al guardar. Intente de nuevo.', 'error');
-        });
+      });
+      lista.innerHTML = html || '<li>No has confirmado tarimas hoy.</li>';
     }
 
-    function cargarConfirmadasHoy() {
-        const listaEl = document.getElementById("listaConfirmadasHoy");
-        if (!listaEl) return;
-        
-        listaEl.innerHTML = '<li>Cargando...</li>';
-        
-        db.ref('tarimas_confirmadas')
-          .orderByChild('usuario/id')
-          .equalTo(empleadoActual.id)
-          .limitToLast(20) // Obtener las últimas 20 de este usuario
-          .once('value')
-          .then(snapshot => {
-            if (!snapshot.exists()) {
-                listaEl.innerHTML = '<li style="background:none; padding: 10px; text-align: center; color: #ccc;">Aún no has confirmado tarimas hoy.</li>';
-                return;
-            }
-            
-            let html = '';
-            let items = [];
-            snapshot.forEach(child => {
-                items.push(child.val());
-            });
-
-            // Ordenar por fecha descendente
-            items.reverse(); 
-            
-            items.forEach(item => {
-                html += `
-                    <li class="tarima-item">
-                        <div class="tarima-item-header-simple" style="justify-content: space-between;">
-                            <span>${item.tarimaId}</span>
-                            <small>${formatoFechaHora(item.fechaHora)}</small>
-                        </div>
-                    </li>`;
-            });
-            listaEl.innerHTML = html;
-          });
+    function cerrarSesion() {
+      usuarioActual = null;
+      mostrarLogin();
     }
 
-    // --- (FIN) NUEVO MÓDULO DE CONFIRMACIÓN DE TARIMAS ---
-
-
-    // --- MÓDULO DE RECOLECCIÓN ---
-    function mostrarPantallaOpcionesRecoleccion() {
-        const adminButtons = `<button onclick="mostrarReportesYAnalisis()" class="btn-secondary">📊 Reportes</button><button onclick="solicitarAccesoEdicion()" class="btn-secondary">📝 Editar Tarimas</button>`;
-        document.getElementById("pantallaPrincipal").innerHTML = `<p class="brand-title">CORNING</p><div class="card"><h2>📦 Recolección</h2><h3>Bienvenido, <b>${empleadoActual.nombre}</b></h3><h4>Resumen del Turno (${determinarTurno()})</h4><div id="resumenTurno" style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">Tarimas: <b id="tarimasRegistradas">0</b> | Cajas: <b id="cajasRegistradas">0</b></div><button onclick="crearNuevaTarima()" class="btn-green">📦 Crear Nueva Tarima</button><button onclick="mostrarEdicionTarimasPropias()" class="btn-secondary">📋 Ver mis Tarimas</button>${empleadoActual.rol === 'administrador' ? adminButtons : ''}<button onclick="cerrarSesion()" class="btn-danger">❌ Cerrar sesión</button></div>`;
-        actualizarResumenTurno();
-    }
-    
-    function actualizarResumenTurno() {
-        db.ref("tarimas").orderByChild("empleadoId").equalTo(empleadoActual.id).once("value").then(snapshot => {
-            let tarimasCount = 0, cajasCount = 0;
-            const fechaTurnoActual = obtenerFechaTurno();
-            const turnoActual = determinarTurno();
-            snapshot.forEach(tarimaSnapshot => {
-                const tarima = tarimaSnapshot.val();
-               if (obtenerFechaTurno(tarima.fechaCreacion) === fechaTurnoActual && tarima.turno === turnoActual) {
-                    tarimasCount++;
-                    if (tarima.cajas) cajasCount += Object.keys(tarima.cajas).length;
-                }
-            });
-            const tarimasEl = document.getElementById("tarimasRegistradas"), cajasEl = document.getElementById("cajasRegistradas");
-            if (tarimasEl && cajasEl) { tarimasEl.textContent = tarimasCount; cajasEl.textContent = cajasCount; }
-        });
-    }
-
-    function crearNuevaTarima() { db.ref("tarimas").orderByKey().limitToLast(1).once("value").then(s => { let n=1; if(s.exists()){const i=parseInt(Object.keys(s.val())[0].split('-')[1]);if(!isNaN(i))n=i+1} const id="TAR-"+String(n).padStart(3,'0'); currentTarima=id; cantidadPiezasActual=null; db.ref("tarimas/"+id).set({id,empleadoId:empleadoActual.id,fechaCreacion:new Date().toISOString(),turno:determinarTurno(),cajas:{},estado:'pendiente'}).then(()=>mostrarFormularioTarima(id))})}
-    function mostrarFormularioTarima(id){document.getElementById("pantallaPrincipal").innerHTML=`<p class="brand-title">CORNING</p><div class="card"><h3>Tarima: ${id}</h3><h4>Cantidad actual: <span id="cantidadActual">${cantidadPiezasActual||'Sin seleccionar'}</span></h4><div id="statusMessage"></div><input type="text" id="codigoCaja" placeholder="Escanear Cantidad o Código BX">${isMobile?`<button id="btnEscCaja" class="btn-primary">📷 Escanear</button>`:""}<h4>Resumen</h4><div id="resumenTarima" style="padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;">Cajas: 0 | Piezas: 0</div><h4>Cajas Registradas</h4><ul id="listaCajas"></ul><button onclick="terminarRegistroTarima('${id}')" class="btn-orange">✅ Terminar</button><button onclick="cancelarCreacionTarima('${id}')" class="btn-danger">❌ Cancelar</button></div>`;updateStatus(`Escanee un código de cantidad (${appConfig.cantidadesPiezas}) para empezar.`,'info');if(isMobile)document.getElementById("btnEscCaja").addEventListener("click",()=>iniciarEscaneo("caja"));document.getElementById("codigoCaja").addEventListener("keypress",e=>{if(e.key==="Enter")procesarEscaneo(e.target.value.trim(),id)});actualizarResumenTarima(id)}
-    function procesarEscaneo(v,id){const i=document.getElementById("codigoCaja"),c=appConfig.cantidadesPiezas.split(',').map(Number),p=parseInt(v);if(c.includes(p)){cantidadPiezasActual=p;document.getElementById("cantidadActual").textContent=p;updateStatus(`✅ Cantidad establecida a ${p}.`,'success');i.value="";return}if(!v.toUpperCase().startsWith('BX')){updateStatus("❌ El código debe empezar con 'BX'.",'error');i.value="";return}if(cantidadPiezasActual===null){updateStatus(`❌ Primero escanee la cantidad (${appConfig.cantidadesPiezas}).`,'error');i.value="";return}const b=v.trim();db.ref("tarimas").once("value").then(s=>{let e=!1,t=null;s.forEach(a=>{if(a.val().cajas&&Object.values(a.val().cajas).find(c=>c.codigoCaja===b)){e=!0;t=a.key}});if(e){updateStatus(`❌ BX ya agregado a la tarima: ${t}`,'error');i.value="";return}const d={codigoCaja:b,numeroOrden:b.substring(2,12),cantidadPiezas:cantidadPiezasActual,empleadoId:empleadoActual.id,turno:determinarTurno(),timestamp:new Date().toISOString()};db.ref(`tarimas/${id}/cajas`).push().set(d).then(()=>{updateStatus(`📦 Caja ${b} guardada.`,'success');actualizarResumenTarima(id)})});i.value=""}
-    
-    function actualizarResumenTarima(idTarima) {
-        db.ref(`tarimas/${idTarima}/cajas`).once("value").then(snapshot => {
-            const cajas = snapshot.val() || {};
-            const totalCajas = Object.keys(cajas).length;
-            let totalPiezas = 0;
-            let listaHtml = "";
-            const cajasPorOrden = {};
-
-            snapshot.forEach(cajaSnapshot => {
-                const caja = cajaSnapshot.val();
-                totalPiezas += caja.cantidadPiezas || 0;
-                if (!cajasPorOrden[caja.numeroOrden]) cajasPorOrden[caja.numeroOrden] = [];
-                cajasPorOrden[caja.numeroOrden].push({ id: cajaSnapshot.key, ...caja });
-            });
-
-            for (const orden in cajasPorOrden) {
-                const totalPiezasOrden = cajasPorOrden[orden].reduce((sum, c) => sum + c.cantidadPiezas, 0);
-                const cajasHtml = cajasPorOrden[orden].map(c => `<li>${c.codigoCaja} <button onclick="event.stopPropagation(); eliminarCaja('${idTarima}', '${c.id}')" class="btn-danger list-item-btn">🗑️</button></li>`).join('');
-                
-                listaHtml += `
-                    <li class="tarima-item">
-                        <div class="tarima-item-header" onclick="toggleDetalles('cajas-orden-${orden}')">
-                            <div>Orden: ${orden} | Piezas: ${totalPiezasOrden}</div>
-                            <button class="btn-secondary list-item-btn">Ver Cajas</button>
-                        </div>
-                        <ul class="cajas-desplegables" id="cajas-orden-${orden}" style="display:none;">
-                            ${cajasHtml}
-                        </ul>
-                    </li>`;
-            }
-
-            const resumenEl = document.getElementById("resumenTarima");
-            const listaEl = document.getElementById("listaCajas");
-            if (resumenEl && listaEl) {
-                resumenEl.innerText = `Cajas: ${totalCajas} | Piezas: ${totalPiezas}`;
-                listaEl.innerHTML = listaHtml;
-            }
-            actualizarResumenTurno();
-        });
-    }
-
-    function eliminarCaja(idTarima, idCaja) {
-        mostrarModal('confirm', 'Confirmar', '¿Eliminar esta caja?', (confirmed) => {
-            if (confirmed) {
-                db.ref(`tarimas/${idTarima}/cajas/${idCaja}`).remove().then(() => {
-                    updateStatus("Caja eliminada.", 'success');
-                    actualizarResumenTarima(idTarima);
-                });
-            }
-        });
-    }
-    
-    function terminarRegistroTarima(idTarima) {
-        mostrarPantallaOpcionesRecoleccion();
-        db.ref(`tarimas/${idTarima}/cajas`).once("value").then(snapshot => {
-            const cajas = snapshot.val();
-            const totalCajas = cajas ? Object.keys(cajas).length : 0;
-            const cajasAInspeccionar = Math.ceil(totalCajas * 0.20);
-            const mensaje = `<div style="text-align: left; line-height: 1.6;">ID de Tarima: <b>${idTarima}</b><br>Total de cajas: <b>${totalCajas}</b></div><hr style="border-color: rgba(255,255,255,0.2); margin: 15px 0;"><div style="font-size: 1.1em; font-weight: bold; color: #F59E0B;">CAJAS A INSPECCIONAR:<div style="font-size: 1.8em; margin-top: 5px;">${cajasAInspeccionar}</div></div>`;
-            mostrarModal('alert', '✅ Registro Finalizado', mensaje);
-        });
-    }
-
-    function cancelarCreacionTarima(id){mostrarModal('confirm','Confirmar','¿Cancelar y eliminar esta tarima?',c=>{if(c)db.ref(`tarimas/${id}`).remove().then(mostrarPantallaOpcionesRecoleccion)})}
-
-    // --- EDICIÓN Y GESTIÓN DE TARIMAS (con UI limpia y desplegable) ---
-    function solicitarAccesoEdicion() {
-        mostrarModal('prompt', 'Acceso de Administrador', 'Ingrese la contraseña:', (password) => {
-            if (password === appConfig.contrasenaTarimas) mostrarEdicionTarimasAdmin();
-            else if (password !== null) mostrarModal('alert', 'Acceso Denegado', 'Contraseña incorrecta.');
-
-        });
-    }
-
-    function mostrarEdicionTarimasPropias() {
-        document.getElementById("pantallaPrincipal").innerHTML = `<p class="brand-title">CORNING</p><div class="card"><h2>📝 Mis Tarimas Creadas</h2><p><small>Haz clic en una tarima para ver sus detalles.</small></p><button onclick="mostrarPantallaOpcionesRecoleccion()" class="btn-primary">⬅️ Regresar</button><div id="statusMessage"></div><ul id="listaEdicionTarimas"></ul></div>`;
-        cargarListaEdicionTarimas(true);
-    }
-
-    function mostrarEdicionTarimasAdmin() {
-        document.getElementById("pantallaPrincipal").innerHTML = `<p class="brand-title">CORNING</p><div class="card" style="max-width: 800px;"><h2>📝 Editar/Eliminar Todas las Tarimas</h2><p><small>Haz clic en una tarima para ver sus detalles.</small></p><button onclick="mostrarPantallaOpcionesRecoleccion()" class="btn-primary">⬅️ Regresar</button><div id="statusMessage"></div><ul id="listaEdicionTarimas"></ul></div>`;
-        cargarListaEdicionTarimas(false);
-    }
-    
-    async function cargarListaEdicionTarimas(soloPropias) {
-        updateStatus("Cargando tarimas...", 'info');
-        const query = soloPropias ? db.ref("tarimas").orderByChild("empleadoId").equalTo(empleadoActual.id) : db.ref("tarimas");
-        const logsSnapshot = await db.ref('historialLogs').once('value');
-        const logsPorTarima = clasificarLogsPorTarima(logsSnapshot.val());
-
-        const snapshot = await query.once('value');
-        let lista = "";
-        if (!snapshot.exists()) {
-            lista = `<li class="tarima-item">No se encontraron tarimas.</li>`;
-        } else {
-            const tarimasArray = [];
-            snapshot.forEach(tarimaSnapshot => { tarimasArray.push(tarimaSnapshot.val()); });
-            
-            tarimasArray.reverse().forEach(tarima => {
-                if (!tarima.id) return;
-                const cajasHtml = Object.values(tarima.cajas || {}).map(caja => `<li>${caja.codigoCaja} (${caja.cantidadPiezas} pz)</li>`).join('');
-                const detallesHtml = `<p style="margin: 0;"><b>Fecha:</b> ${formatoFechaHora(tarima.fechaCreacion)} | <b>Creada por:</b> ${tarima.empleadoId}</p>${determinarEstadoCompleto(tarima, logsPorTarima[tarima.id] || [])}<div class="cajas-desplegables"><h4>Contenido (BX):</h4><ul>${cajasHtml || '<li>No hay cajas registradas.</li>'}</ul></div><div class="edit-delete-btns"><button onclick="editarTarima('${tarima.id}')" class="btn-primary">✏️ Editar</button><button onclick="eliminarTarima('${tarima.id}', ${soloPropias})" class="btn-danger">🗑️ Eliminar</button></div>`;
-                lista += `<li class="tarima-item" onclick="toggleDetalles('detalles-${tarima.id}')"><div class="tarima-item-header-simple">Tarima: ${tarima.id}</div><div class="tarima-detalles-desplegables" id="detalles-${tarima.id}" style="display:none;">${detallesHtml}</div></li>`;
-            });
-        }
-        document.getElementById("listaEdicionTarimas").innerHTML = lista;
-        updateStatus("Lista cargada.", 'success');
-    }
-
-    function clasificarLogsPorTarima(logsPorFecha) {
-        const resultado = {};
-        if (!logsPorFecha) return resultado;
-        Object.values(logsPorFecha).forEach(logsPorTurno => {
-            Object.values(logsPorTurno).forEach(logs => {
-                Object.values(logs).forEach(log => {
-                    if (log.tarimaId) {
-                        if (!resultado[log.tarimaId]) resultado[log.tarimaId] = [];
-                       resultado[log.tarimaId].push(log);
-                    }
-                });
-            });
-        });
-        return resultado;
-    }
-
-    function determinarEstadoCompleto(tarima, logs) {
-        const recolectada = logs.find(log => log.accion === 'recolectada');
-        const confirmadaProd = logs.find(log => log.accion === 'confirmada_en_produccion');
-        let statusText = "Pendiente de Calidad ⏳";
-        if (recolectada) statusText = "Recolectada (Logística) 🚛";
-        else if (confirmadaProd) statusText = "En Proceso (Producción) ⚙️";
-        else if (tarima.estado === 'liberada') statusText = "Liberada (Calidad) ✅";
-        else if (tarima.estado === 'rechazada') statusText = `Rechazada (Calidad) ❌`;
-        
-        const tsCalidad = tarima.timestampLiberada || tarima.timestampRechazo;
-        const tsProd = confirmadaProd?.timestamp;
-        const tsLogistica = recolectada?.horaApagado;
-
-        const timestampsItems = [];
-        if(tsCalidad) timestampsItems.push(`<li><small>Calidad: ${formatoFechaHora(tsCalidad)}</small></li>`);
-        if(tsProd) timestampsItems.push(`<li><small>Producción: ${formatoFechaHora(tsProd)}</small></li>`);
-        if(tsLogistica) timestampsItems.push(`<li><small>Logística: ${formatoFechaHora(tsLogistica)}</small></li>`);
-        
-        let timestampsHtml = '';
-        if (timestampsItems.length > 0) {
-            timestampsHtml = `<div class="workflow-timestamps"><b>Trazabilidad:</b><ul>${timestampsItems.join('')}</ul></div>`;
-        }
-        
-        return `<div class="workflow-status"><b>Estado:</b> ${statusText}</div>${timestampsHtml}`;
-    }
-
-    function editarTarima(idTarima) {
-        event.stopPropagation(); currentTarima = idTarima; mostrarFormularioTarima(idTarima);
-        updateStatus(`Editando tarima ${idTarima}`, 'info');
-    }
-
-    function eliminarTarima(idTarima, soloPropias) {
-        event.stopPropagation();
-        mostrarModal('confirm', 'Confirmar', `¿Eliminar la tarima ${idTarima}?`, (confirmed) => {
-            if (confirmed) db.ref(`tarimas/${idTarima}`).remove().then(() => {
-                mostrarModal('alert', 'Eliminada', `La tarima ${idTarima} ha sido eliminada.`);
-             if (soloPropias) mostrarEdicionTarimasPropias(); else mostrarEdicionTarimasAdmin();
-            });
-        });
-    }
-
-    // --- MÓDULO DE VERIFICACIÓN Y REPORTES (también adoptan la nueva UI) ---
-    async function buscarYMostrarInfoBX(codigoCaja) {
-        if (!codigoCaja.toUpperCase().startsWith('BX')) { updateStatus("❌ El código debe empezar con 'BX'.", 'error'); return; }
-        const tarimasSnapshot = await db.ref("tarimas").once("value");
-        let tarimaEncontrada = null;
-        tarimasSnapshot.forEach(ts=>{if(ts.val().cajas&&Object.values(ts.val().cajas).find(c=>c.codigoCaja===codigoCaja))tarimaEncontrada=ts.val()});
-        if (!tarimaEncontrada) { updateStatus("❌ Caja no encontrada.", 'error'); } 
-        else { const logsSnapshot=await db.ref('historialLogs').once('value'); const logsPorTarima=clasificarLogsPorTarima(logsSnapshot.val()); mostrarInfoTarima(tarimaEncontrada, codigoCaja, logsPorTarima); }
-    }
-    function mostrarInfoTarima(d,c,l){const h=Object.values(d.cajas||{}).map(a=>`<li ${a.codigoCaja===c?'style="background-color:rgba(0,122,255,0.5);"':''}>${a.codigoCaja}</li>`).join('');document.getElementById("pantallaPrincipal").innerHTML=`<p class="brand-title">CORNING</p><div class="card"><h2>🔎 Información de Tarima</h2><h3>Tarima: <b>${d.id}</b></h3><p><b>Recolector:</b> ${d.empleadoId}</p>${determinarEstadoCompleto(d,l[d.id]||[])}<hr><h4>Cajas (${Object.keys(d.cajas||{}).length}):</h4><ul id="listaInfoCajas" style="max-height:200px;overflow-y:auto;">${h}</ul><div id="statusMessage"></div><button onclick="iniciarFlujoVerificacion()" class="btn-secondary">🔎 Verificar otro BX</button><button onclick="mostrarPantallaInicio()" class="btn-primary">⬅️ Regresar</button></div>`;updateStatus(`Información para el BX: ${c}`,'info')}
-    function iniciarFlujoVerificacion(){document.getElementById("pantallaPrincipal").innerHTML=`<p class="brand-title">CORNING</p><div class="card"><h2>🔎 Verificación de BX</h2><p>Escanee un código BX.</p><div id="statusMessage"></div><input type="text" id="verificacionInput" placeholder="Escanear BX-XXX">${isMobile?`<button id="btnEscVerificacion" class="btn-secondary">📷 Escanear</button>`:""}<button onclick="mostrarPantallaInicio()" class="btn-primary">⬅️ Regresar</button></div>`;updateStatus("Esperando escaneo...",'info');const i=document.getElementById("verificacionInput");i.addEventListener("keypress",e=>{if(e.key==="Enter")buscarYMostrarInfoBX(i.value.trim())});if(isMobile)document.getElementById("btnEscVerificacion").addEventListener("click",()=>iniciarEscaneo("verificacion"))}
-
-    function mostrarReportesYAnalisis(){const h=new Date().toISOString().slice(0,10);document.getElementById("pantallaPrincipal").innerHTML=`<p class="brand-title">CORNING</p><div class="card" style="max-width:900px;"><h2>📊 Reportes</h2><p><small>Haz clic en una tarima para ver sus detalles.</small></p><div class="report-filters"><input type="date" id="filtroFechaInicio" value="${h}"><input type="date" id="filtroFechaFin" value="${h}"><input type="text" id="filtroEmpleado" placeholder="ID Empleado (opcional)"><select id="filtroEstado"><option value="todos">Todos los estados</option><option value="Pendiente de Calidad ⏳">Pendiente</option><option value="Liberada (Calidad) ✅">Liberada</option><option value="En Proceso (Producción) ⚙️">En Producción</option><option value="Recolectada (Logística) 🚛">Recolectada</option><option value="Rechazada (Calidad) ❌">Rechazada</option></select></div><button onclick="generarReporte()" class="btn-primary">🔍 Generar Reporte</button><button onclick="mostrarPantallaOpcionesRecoleccion()" class="btn-secondary">⬅️ Regresar</button><div id="statusMessage"></div><div id="reporteResultados" class="report-section"><hr><h4>Resultados</h4><div id="reporteResumen"></div><ul id="listaResultadosReporte"></ul></div></div>`}
-    async function generarReporte(){updateStatus("Generando reporte...",'info');const fI=document.getElementById("filtroFechaInicio").value,fF=document.getElementById("filtroFechaFin").value,eI=document.getElementById("filtroEmpleado").value.trim(),eF=document.getElementById("filtroEstado").value;const tS=await db.ref("tarimas").orderByChild('fechaCreacion').startAt(new Date(fI).toISOString()).endAt(new Date(fF+"T23:59:59").toISOString()).once("value"),lS=await db.ref('historialLogs').once('value'),lPT=clasificarLogsPorTarima(lS.val());let r=[];tS.forEach(t=>{const a=t.val();if(!a.id)return;const eC=determinarEstadoCompleto(a,lPT[a.id]||[]),eST=eC.match(/<b>Estado:<\/b> (.*?)<\/div>/)[1];const cF=(eI===''||a.empleadoId===eI)&&(eF==='todos'||eST===eF);if(cF)r.push({...a,estadoCompletoHTML:eC,estadoFiltro:eST})});mostrarResultadosReporte(r.reverse())}
-    function mostrarResultadosReporte(r){const lR=document.getElementById("listaResultadosReporte"),rD=document.getElementById("reporteResumen");if(r.length===0){lR.innerHTML=`<li class="tarima-item">No se encontraron resultados.</li>`;rD.innerHTML='';updateStatus("Reporte generado. 0 resultados.",'info');return}let h="",tC=0,cE={};r.forEach(t=>{const n=t.cajas?Object.keys(t.cajas).length:0;tC+=n;cE[t.estadoFiltro]=(cE[t.estadoFiltro]||0)+1;const c=Object.values(t.cajas||{}).map(a=>`<li>${a.codigoCaja} (${a.cantidadPiezas} pz)</li>`).join('');h+=`<li class="tarima-item" onclick="toggleDetalles('detalles-reporte-${t.id}')"><div class="tarima-item-header-simple">Tarima: ${t.id}</div><div class="tarima-detalles-desplegables" id="detalles-reporte-${t.id}" style="display:none;"><p style="margin:0;"><b>Fecha:</b> ${formatoFechaHora(t.fechaCreacion)} | <b>Creada por:</b> ${t.empleadoId}</p>${t.estadoCompletoHTML}<div class="cajas-desplegables"><h4>Contenido (BX):</h4><ul>${c||'<li>No hay cajas.</li>'}</ul></div></div></li>`});let rH=Object.entries(cE).map(([e,c])=>`<div class="resumen-item">${e}: <b>${c}</b></div>`).join('');rD.innerHTML=`<p style="width:100%;text-align:center;"><b>Resultados: ${r.length} tarimas | ${tC} cajas</b></p>${rH}`;lR.innerHTML=h;updateStatus(`Reporte generado con ${r.length} resultados.`,'success')}
-
-    // --- FUNCIONALIDAD DEL ESCÁNER Y ARRANQUE ---
-    async function iniciarEscaneo(tipo) {
-        if (scanning) return;
-        modo = tipo; scanning = true;
-        document.getElementById('scannerModal').classList.add('active');
-        codeReader = new ZXing.BrowserBarcodeReader();
-        updateStatus("Cámara activa...", 'info');
-        try {
-            const result = await codeReader.decodeOnceFromVideoDevice(undefined, 'preview');
-            detenerCamara();
-            const valor = result.text.trim();
-            if (modo.startsWith("gafete-")) verificarAcceso(valor, modo.split('-')[1]);
-            else if (modo === "caja") procesarEscaneo(valor, currentTarima);
-            else if (modo === "verificacion") buscarYMostrarInfoBX(valor);
-            else if (modo === "tarima-confirmacion") procesarConfirmacion(valor);
-        } catch (err) {
-            updateStatus("❌ No se pudo leer el código.", 'error');
-            detenerCamara();
-        }
-    }
-
-    function detenerCamara() {
-        if (codeReader) codeReader.reset();
-       document.getElementById('scannerModal').classList.remove('active');
-        scanning = false;
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const splash = document.getElementById('splashScreen');
-        const main = document.getElementById('pantallaPrincipal');
-        
-        setTimeout(() => {
-            splash.style.opacity = '0';
-            
-            /* --- ERROR 'g' CORREGIDO AQUÍ --- */
-            /* Se eliminó la 'g' que rompía el JS */
-            splash.addEventListener('transitionend', () => {
-                splash.classList.remove('activa');
-                activarPantalla('pantallaPrincipal');
-                mostrarPantallaInicio();
-            }, { once: true });
-        }, 2000);
-
-        cargarConfiguracion();
-        document.getElementById('closeScannerBtn').addEventListener('click', detenerCamara);
-
-        /* --- BLOQUE DE SERVICE WORKER ELIMINADO --- */
-
-    });
-
-</script>
+    // --- INICIO ---
+    mostrarLogin();
+  </script>
 </body>
 </html>
