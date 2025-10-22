@@ -9,6 +9,8 @@
 
 <meta name="theme-color" content="#0f2027">
 
+<meta name="mobile-web-app-capable" content="yes">
+
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Tarimas">
@@ -154,6 +156,15 @@ let tarimaActual = null;
 let cajasTarima = [];
 const appDiv = document.getElementById('app');
 
+// === AJUSTE: MOVIMOS CERRAR SESIÓN AQUÍ ARRIBA ===
+// Al moverla aquí, nos aseguramos de que esté definida antes de que
+// 'mostrarAdministracion' o 'mostrarConfirmacionTarimas' intenten usarla.
+function cerrarSesion(){ 
+  usuarioActual=null; 
+  mostrarLogin(); 
+}
+// === FIN DEL AJUSTE ===
+
 function abrirModal(html){
   document.getElementById('modalBody').innerHTML = html;
   document.getElementById('modalContainer').style.display = 'flex';
@@ -273,7 +284,7 @@ function mostrarAdministracion(){
   
   document.getElementById('btnGestionUsuarios').onclick = mostrarGestionUsuarios;
   document.getElementById('btnConsultarTarimas').onclick=consultarTarimas;
-  document.getElementById('btnSalir').onclick=cerrarSesion;
+  document.getElementById('btnSalir').onclick=cerrarSesion; // Esto ahora funcionará
 }
 
 function mostrarGestionUsuarios() {
@@ -389,8 +400,8 @@ function mostrarConfirmacionTarimas(){
   document.getElementById('btnEscanear').onclick=escanearCaja;
   document.getElementById('codigoTarima').addEventListener('keypress',e=>{ if(e.key==='Enter') escanearCaja(); });
   document.getElementById('btnConfirmar').onclick=confirmarTarima;
-  document.getElementById('btnSalir').onclick=cerrarSesión;
   document.getElementById('btnMisTarimas').onclick = consultarMisTarimas;
+  document.getElementById('btnSalir').onclick=cerrarSesion; // Esto ahora funcionará
   actualizarContador();
 }
 
@@ -634,17 +645,12 @@ async function consultarTarimas(){
   abrirModal(html);
 }
 
-
-function cerrarSesion(){ usuarioActual=null; mostrarLogin(); }
-
 // --- INICIO ---
 mostrarLogin();
 </script>
 
 <script>
-  // Comprueba si el navegador soporta Service Workers
   if ('serviceWorker' in navigator) {
-    // Registra el SW después de que la página cargue
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js')
         .then(registration => {
@@ -656,5 +662,6 @@ mostrarLogin();
     });
   }
 </script>
+
 </body>
 </html>
