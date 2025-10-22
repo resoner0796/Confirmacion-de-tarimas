@@ -243,6 +243,12 @@
 let tarimaActual = null;
 let cajasTarima = [];
 
+document.getElementById("btnNuevaTarima").onclick = crearNuevaTarima;
+document.getElementById("btnEscanear").onclick = escanearCaja;
+document.getElementById("btnConfirmar").onclick = confirmarTarima;
+
+
+
 async function crearNuevaTarima() {
   updateStatus("Creando tarima...", "info");
   const folio = await generarNuevoFolio();
