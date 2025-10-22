@@ -31,7 +31,7 @@ body {
   border-radius: 20px;
   text-align: center;
   width: 90%;
-  max-width: 550px;
+  max-width: 600px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 input, select {
@@ -52,46 +52,51 @@ button {
   margin-top: 10px;
   font-weight: bold;
   color: #fff;
+  transition: transform 0.1s ease, background 0.2s ease;
 }
+button:hover { transform: scale(1.02); }
 .btn-primary { background-color: rgba(0,122,255,0.6); }
 .btn-green { background-color: rgba(76,175,80,0.6); }
 .btn-danger { background-color: rgba(255,59,48,0.6); }
 .btn-orange { background-color: rgba(255,193,7,0.7); color: #000; }
 .btn-blue { background-color: rgba(0, 150, 255,0.6); }
-#statusMessage { margin-top: 15px; font-weight: bold; }
+#statusMessage { margin-top: 10px; font-weight: bold; min-height: 20px; text-align:center; }
 ul { list-style: none; padding: 0; text-align: left; }
 li { background: rgba(255,255,255,0.1); margin-bottom: 6px; padding: 8px; border-radius: 8px; }
 .user-actions { display: flex; gap: 5px; margin-top: 5px; }
-.tarimaBox { background: rgba(255,255,255,0.1); border-radius: 10px; padding: 8px; margin: 5px 0; }
+.tarimaBox { background: rgba(255,255,255,0.12); border-radius: 10px; padding: 12px; margin: 5px 0; box-shadow:0 4px 12px rgba(0,0,0,0.2);}
 #modalContainer {
   display:none;
   position:fixed;
   top:0; left:0;
   width:100%; height:100%;
-  background:rgba(0,0,0,0.6);
+  background:rgba(0,0,0,0.65);
   justify-content:center;
   align-items:center;
   z-index:1000;
 }
 #modalContent {
   background:#1e1e1e;
-  padding:20px;
-  border-radius:12px;
-  max-width:500px;
+  padding:25px;
+  border-radius:16px;
+  max-width:600px;
   width:90%;
   color:#fff;
   position:relative;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height:90vh;
+  overflow-y:auto;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
 }
 #modalClose {
   position:absolute;
-  top:10px;
-  right:15px;
+  top:12px;
+  right:18px;
   cursor:pointer;
   font-weight:bold;
+  font-size:18px;
 }
-details summary { cursor:pointer; }
+details summary { cursor:pointer; font-weight:bold; }
+#scanFeedback { text-align:center; margin-bottom:8px; font-weight:bold; min-height:20px; }
 </style>
 </head>
 <body>
@@ -196,12 +201,14 @@ async function mostrarAdministracion(){
       <h4>Usuarios Registrados:</h4>
       <ul id="listaUsuarios"></ul>
       <hr>
+      <button id="btnConsultarTarimas" class="btn-blue">📦 Consultar Tarimas</button>
       <button id="btnSalir" class="btn-danger">❌ Cerrar Sesión</button>
       <div id="statusMessage"></div>
     </div>
   `);
   document.getElementById('btnAgregar').onclick=agregarUsuario;
   document.getElementById('btnSalir').onclick=cerrarSesion;
+  document.getElementById('btnConsultarTarimas').onclick=consultarTarimas;
   cargarUsuarios();
 }
 
@@ -217,7 +224,7 @@ async function cargarUsuarios(){
       </div>
     </li>`;
   });
-  lista.innerHTML=html || '<li>No hay usuarios registrados.</li>';
+  lista.innerHTML=html||'<li>No hay usuarios registrados.</li>';
 }
 
 async function agregarUsuario(){
@@ -227,16 +234,21 @@ async function agregarUsuario(){
   if(!nombre||!gafete){ updateStatus('❌ Completa todos los campos','error'); return; }
   await setDoc(doc(db,"users",gafete),{nombre,gafete,rol});
   updateStatus('✅ Usuario agregado','success');
-  document.getElementById('nombreUsuario').value='';
-  document.getElementById('gafeteUsuario').value='';
+  document.getElementById('nombreUsuario').value=''; document.getElementById('gafeteUsuario').value='';
+  cargarUsuarios();
+}
+
+window.eliminarUsuario=async function(id){
+  if(id===SUPER_ADMIN_GAFETE){ alert("No puedes eliminar al Super Admin."); return; }
+  await deleteDoc(doc(db,"users",id));
   cargarUsuarios();
 }
 
 window.editarUsuario=function(id,nombre,gafete,rol){
-  const html=`<h3>Editar Usuario</h3>
-    <input id="editNombre" value="${nombre}" placeholder="Nombre" style="width:100%;margin:5px 0;">
-    <input id="editGafete" value="${gafete}" placeholder="Gafete" style="width:100%;margin:5px 0;">
-    <select id="editRol" style="width:100%;margin:5px 0;">
+  const html=`
+    <input id="editNombre" value="${nombre}">
+    <input id="editGafete" value="${gafete}">
+    <select id="editRol">
       <option value="empleado" ${rol==='empleado'?'selected':''}>Empleado</option>
       <option value="administrador" ${rol==='administrador'?'selected':''}>Administrador</option>
     </select>
@@ -254,12 +266,6 @@ window.editarUsuario=function(id,nombre,gafete,rol){
   };
 }
 
-window.eliminarUsuario=async function(id){
-  if(id===SUPER_ADMIN_GAFETE){ alert("No puedes eliminar al Super Admin."); return; }
-  await deleteDoc(doc(db,"users",id));
-  cargarUsuarios();
-}
-
 // TARIMAS
 function mostrarConfirmacionTarimas(){
   setView(`
@@ -268,6 +274,7 @@ function mostrarConfirmacionTarimas(){
       <h2>✅ Registrar Tarima</h2>
       <button id="btnNuevaTarima" class="btn-orange">➕ Crear Nueva Tarima</button>
       <h4 id="folioActual"></h4>
+      <p id="scanFeedback"></p>
       <input id="codigoTarima" placeholder="Escanear BX...">
       <button id="btnEscanear" class="btn-green">Agregar Caja</button>
       <hr>
@@ -293,26 +300,21 @@ function mostrarConfirmacionTarimas(){
 function renderTarima(){
   const lista=document.getElementById("listaConfirmadas");
   const grouped={};
-  cajasTarima.forEach(c=>{
-    if(!grouped[c.numeroOrden]) grouped[c.numeroOrden]=[];
-    grouped[c.numeroOrden].push(c.codigoCaja);
-  });
+  cajasTarima.forEach(c=>{ if(!grouped[c.numeroOrden]) grouped[c.numeroOrden]=[]; grouped[c.numeroOrden].push(c.codigoCaja); });
   let html="";
   Object.entries(grouped).forEach(([orden,cajas])=>{
     const ids=cajas.map(c=>`<li>${c} <button onclick="eliminarCaja('${c}')" class="btn-danger">❌</button></li>`).join("");
     html+=`<li><details><summary>Orden: ${orden} (${cajas.length} cajas)</summary><ul>${ids}</ul></details></li>`;
   });
-  lista.innerHTML=html || "<li>Sin cajas escaneadas</li>";
+  lista.innerHTML=html||"<li>Sin cajas escaneadas</li>";
   document.getElementById("totalCajas").textContent=`Total: ${cajasTarima.length} cajas`;
+  document.getElementById("folioActual").textContent=tarimaActual?`Folio: ${tarimaActual.folio} - ${tarimaActual.cajas.length} cajas`:'';
 }
 
-function eliminarCaja(codigo){
-  cajasTarima=cajasTarima.filter(c=>c.codigoCaja!==codigo);
-  renderTarima();
-}
+function eliminarCaja(codigo){ cajasTarima=cajasTarima.filter(c=>c.codigoCaja!==codigo); renderTarima(); }
 window.eliminarCaja=eliminarCaja;
 
-async function crearNuevaTarima(){
+async function crearNuevaTarima(){ 
   const folio=await generarNuevoFolio();
   tarimaActual={folio,cajas:[]};
   cajasTarima=[];
@@ -322,9 +324,11 @@ async function crearNuevaTarima(){
 
 async function escanearCaja(){
   const codigo=document.getElementById("codigoTarima").value.trim().toUpperCase();
-  if(!codigo.startsWith("BX")){ updateStatus("❌ El código debe empezar con BX",'error'); return; }
+  const feedback=document.getElementById("scanFeedback");
+  if(!codigo.startsWith("BX")){ feedback.textContent="❌ Código inválido"; feedback.style.color='#FF5252'; return; }
   const orden=codigo.slice(2,12);
   cajasTarima.push({codigoCaja:codigo,numeroOrden:orden});
+  feedback.textContent="✅ Escaneo correcto"; feedback.style.color='#4CAF50';
   document.getElementById("codigoTarima").value='';
   renderTarima();
 }
@@ -332,13 +336,7 @@ async function escanearCaja(){
 async function confirmarTarima(){
   if(!tarimaActual||cajasTarima.length===0){ updateStatus("❌ No hay tarima activa o sin cajas",'error'); return; }
   try{
-    await addDoc(collection(db,"tarimas_confirmadas"),{
-      folio:tarimaActual.folio,
-      usuario:usuarioActual.nombre,
-      gafete:usuarioActual.gafete,
-      fechaHora:Timestamp.now(),
-      cajas:cajasTarima
-    });
+    await addDoc(collection(db,"tarimas_confirmadas"),{folio:tarimaActual.folio,usuario:usuarioActual.nombre,gafete:usuarioActual.gafete,fechaHora:Timestamp.now(),cajas:cajasTarima});
     updateStatus(`✅ Tarima ${tarimaActual.folio} confirmada`,'success');
     cajasTarima=[]; tarimaActual=null; renderTarima();
   }catch(err){ console.error(err); updateStatus("❌ Error al guardar tarima",'error'); }
@@ -346,15 +344,11 @@ async function confirmarTarima(){
 
 async function generarNuevoFolio(){
   const snapshot=await getDocs(collection(db,"tarimas_confirmadas"));
-  let max=0;
-  snapshot.forEach(d=>{
-    const f=d.data().folio;
-    if(f && f.startsWith("TAR-")){ const n=parseInt(f.split("-")[1]); if(n>max) max=n; }
-  });
-  const siguiente=(max+1).toString().padStart(3,"0");
-  return `TAR-${siguiente}`;
+  let max=0; snapshot.forEach(d=>{ const f=d.data().folio; if(f && f.startsWith("TAR-")){ const n=parseInt(f.split("-")[1]); if(n>max) max=n; } });
+  return `TAR-${(max+1).toString().padStart(3,"0")}`;
 }
 
+// MOSTRAR TARIMAS CONFIRMADAS
 async function verTarimasConfirmadas(){
   const q=query(collection(db,"tarimas_confirmadas"),orderBy("folio","desc"));
   const snapshot=await getDocs(q);
@@ -364,20 +358,31 @@ async function verTarimasConfirmadas(){
     if(data.gafete===usuarioActual.gafete){
       const fecha=data.fechaHora.toDate();
       const grouped={};
-      data.cajas.forEach(c=>{
-        if(!grouped[c.numeroOrden]) grouped[c.numeroOrden]=[];
-        grouped[c.numeroOrden].push(c.codigoCaja);
-      });
+      data.cajas.forEach(c=>{ if(!grouped[c.numeroOrden]) grouped[c.numeroOrden]=[]; grouped[c.numeroOrden].push(c.codigoCaja); });
       let detalle="";
-      Object.entries(grouped).forEach(([orden,cajas])=>{
-        const ids=cajas.map(c=>`<li>${c}</li>`).join("");
-        detalle+=`<details><summary>Orden: ${orden} (${cajas.length} cajas)</summary><ul>${ids}</ul></details>`;
-      });
+      Object.entries(grouped).forEach(([orden,cajas])=>{ detalle+=`<details><summary>Orden: ${orden} (${cajas.length} cajas)</summary><ul>${cajas.map(c=>`<li>${c}</li>`).join('')}</ul></details>`; });
       html+=`<div class="tarimaBox"><details><summary>${data.folio}</summary>
-        <p>Confirmado: ${fecha.toLocaleString()}</p>${detalle}</details></div>`;
+      <p>Total cajas: ${data.cajas.length}</p>
+      <p>Confirmado: ${fecha.toLocaleString()}</p>${detalle}</details></div>`;
     }
   });
   abrirModal(html||"<p>No hay tarimas confirmadas</p>");
+}
+
+// CONSULTAR TARIMAS PARA ADMIN
+async function consultarTarimas(){
+  const q=query(collection(db,"tarimas_confirmadas"),orderBy("fechaHora","desc"));
+  const snapshot=await getDocs(q);
+  let html="";
+  snapshot.forEach(d=>{
+    const data=d.data();
+    const fecha=data.fechaHora.toDate();
+    html+=`<div class="tarimaBox">
+      <p><strong>${data.folio}</strong> — ${fecha.toLocaleString()} — Usuario: ${data.usuario}</p>
+      <details>${data.cajas.map(c=>`<li>${c.codigoCaja}</li>`).join('')}</details>
+    </div>`;
+  });
+  abrirModal(html||"<p>No hay tarimas registradas aún</p>");
 }
 
 function cerrarSesion(){ usuarioActual=null; mostrarLogin(); }
