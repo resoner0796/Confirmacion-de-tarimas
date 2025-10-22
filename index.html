@@ -125,7 +125,6 @@ details summary { cursor:pointer; font-weight:bold; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-// Se mantienen las importaciones, 'deleteDoc' ya estaba
 import { getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc, Timestamp, query, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -160,6 +159,22 @@ function updateStatus(msg,type='info'){
   else el.style.color='#9CA3AF';
 }
 function setView(html){ appDiv.innerHTML=html; }
+
+// --- 3. NUEVA FUNCIÓN: Formato de Fecha DD-MM-YY HH:MM ---
+function formatarFechaHora(timestamp) {
+  if (!timestamp || typeof timestamp.seconds !== 'number') {
+    return 'Fecha no registrada';
+  }
+  const d = new Date(timestamp.seconds * 1000);
+  const dia = String(d.getDate()).padStart(2, '0');
+  const mes = String(d.getMonth() + 1).padStart(2, '0'); // +1 porque los meses son 0-indexados
+  const anio = String(d.getFullYear()).slice(-2); // Últimos 2 dígitos del año
+  const hora = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  
+  return `${dia}-${mes}-${anio} ${hora}:${min}`;
+}
+
 
 function mostrarLogin(){
   setView(`
@@ -268,19 +283,13 @@ window.editarUsuario=async function(id){
   if(newNombre && newRol){ await setDoc(doc(db,"users",id),{ nombre:newNombre, gafete:data.gafete, rol:newRol }); cargarUsuarios(); }
 }
 
-// --- 2. NUEVA FUNCIÓN: Eliminar Tarima (Admin) ---
-// La ponemos aquí junto a las otras funciones 'window'
 window.confirmarEliminarTarima = async function(docId) {
-  // Pedimos confirmación
   if (confirm("¿Estás seguro de que quieres eliminar esta tarima? Esta acción no se puede deshacer.")) {
     try {
-      // Borramos el documento usando su ID
       await deleteDoc(doc(db, "tarimas_confirmadas", docId));
-      // Mostramos un mensaje de éxito en el modal actual
       document.getElementById('modalBody').innerHTML = "<h3>✅ Tarima Eliminada</h3><p>La tarima ha sido eliminada exitosamente. Cierra este modal y vuelve a consultar para ver la lista actualizada.</p>";
     } catch (e) {
       console.error("Error al eliminar tarima: ", e);
-      // Mostramos un mensaje de error
       document.getElementById('modalBody').innerHTML = "<h3>❌ Error</h3><p>No se pudo eliminar la tarima.</p>";
     }
   }
@@ -361,7 +370,18 @@ window.eliminarCaja=eliminarCaja;
 
 async function escanearCaja(){
   const codigo=document.getElementById('codigoTarima').value.trim().toUpperCase();
-  if(!codigo.startsWith("BX")){ updateStatus("❌ El código debe empezar con BX",'error'); return; }
+  if(!codigo.startsWith("BX")){ 
+    updateStatus("❌ El código debe empezar con BX",'error'); 
+    return; 
+  }
+
+  // --- 1. AJUSTE: Verificación de duplicados ---
+  if (cajasTarima.some(caja => caja.codigoCaja === codigo)) {
+    updateStatus(`❌ El BX ${codigo} ya fue escaneado en esta tarima.`, 'error');
+    document.getElementById('codigoTarima').value='';
+    return; // Detiene la función aquí si está duplicado
+  }
+  
   const orden=codigo.slice(2,12);
   cajasTarima.push({codigoCaja:codigo, numeroOrden:orden});
   renderTarima();
@@ -377,7 +397,7 @@ async function confirmarTarima(){
     folio: tarimaActual.folio,
     gafete: usuarioActual.gafete,
     usuario: usuarioActual.nombre,
-    fecha: Timestamp.now(), // Esta línea es la que guarda la fecha
+    fecha: Timestamp.now(), 
     cajas:cajasTarima
   });
   updateStatus('');
@@ -420,8 +440,6 @@ async function consultarMisTarimas() {
   } else {
     html += "<ul>";
     
-    // --- 1. AJUSTE (BUG FIX): Hacemos el sort "seguro" ---
-    // Comprobamos que 'a.fecha' y 'b.fecha' existan. Si no, usamos 0.
     const tarimas = snapshot.docs.map(doc => doc.data()).sort((a, b) => 
       (b.fecha ? b.fecha.seconds : 0) - (a.fecha ? a.fecha.seconds : 0)
     );
@@ -445,8 +463,8 @@ async function consultarMisTarimas() {
         </details>`;
       });
       
-      // Esta línea ya era segura, la dejamos igual
-      const fecha = t.fecha ? new Date(t.fecha.seconds * 1000).toLocaleString() : 'Fecha no registrada';
+      // --- 3. AJUSTE: Usamos la nueva función de formato de fecha ---
+      const fecha = formatarFechaHora(t.fecha);
       
       html += `<li class="tarimaBox">
         <b>${folio}</b>
@@ -469,9 +487,6 @@ async function consultarTarimas(){
   const snapshot=await getDocs(collection(db,"tarimas_confirmadas"));
   let html="<h3>Tarimas Confirmadas (Todas)</h3><ul>";
   
-  // --- 1. AJUSTE (BUG FIX + Feature):
-  // 1. Mapeamos guardando el 'id' del documento para poder borrarlo.
-  // 2. Hacemos el sort "seguro" igual que en la otra función.
   const tarimas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     .sort((a, b) => 
       (b.fecha ? b.fecha.seconds : 0) - (a.fecha ? a.fecha.seconds : 0)
@@ -479,11 +494,12 @@ async function consultarTarimas(){
 
   tarimas.forEach(t => {
     const folio=t.folio;
-    const creador=t.usuario || t.gafete;
+    // --- 2. AJUSTE: Se usa t.gafete directamente ---
+    const creador = t.gafete || 'Gafete N/A';
+    
     const cajas=t.cajas||[];
     const grouped={};
     cajas.forEach(c=>{
-        // Añadimos comprobación por si 'codigoCaja' no existiera
         const orden = c.codigoCaja ? c.codigoCaja.slice(2,12) : 'N/A';
         if(!grouped[orden]) grouped[orden]=[];
         grouped[orden].push(c.codigoCaja || 'N/A');
@@ -496,12 +512,9 @@ async function consultarTarimas(){
       </details>`;
     });
     
-    // Esta línea ya era segura
-    const fecha=t.fecha ? new Date(t.fecha.seconds*1000).toLocaleString() : 'Fecha no registrada';
+    // --- 3. AJUSTE: Usamos la nueva función de formato de fecha ---
+    const fecha = formatarFechaHora(t.fecha);
     
-    // --- 2. AJUSTE (Feature): Añadimos el botón de eliminar
-    // Usamos t.id (que guardamos en el map) para la función de borrado
-    // Añadimos un style simple para que el botón se vea bien
     html+=`<li class="tarimaBox">
       <b>${folio}</b> (Creado por: ${creador})
       <button class="btn-danger" onclick="confirmarEliminarTarima('${t.id}')" style="float:right; width:auto; padding: 5px 10px; margin-top:0; font-size: 12px;">❌</button>
