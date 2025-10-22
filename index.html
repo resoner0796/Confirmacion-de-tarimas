@@ -251,8 +251,8 @@ window.eliminarUsuario = async function(id){
 
 window.editarUsuario = async function(id){
   const docRef = doc(db,"users",id);
-  const docSnap = await getDocs(collection(db,"users"));
-  const user = (await getDocs(docRef)).data();
+  const userSnap = await getDocs(docRef);
+  const user = userSnap.data();
   abrirModal(`
     <h3>Editar Usuario</h3>
     <input id="editNombre" value="${user.nombre}" placeholder="Nombre">
@@ -308,7 +308,8 @@ async function crearNuevaTarima(){
   const folio = await generarNuevoFolio();
   tarimaActual = { folio, cajas: [] };
   cajasTarima = [];
-  updateStatus(`Tarima ${folio} lista para escanear.`, "success");
+  document.getElementById("scanFeedback").textContent="";
+  document.getElementById("folioActual").textContent=`Tarima ${folio} lista para escanear.`;
   renderTarima();
 }
 
@@ -363,6 +364,8 @@ async function confirmarTarima(){
     cajasTarima=[];
     tarimaActual=null;
     renderTarima();
+    document.getElementById("scanFeedback").textContent="";
+    document.getElementById("folioActual").textContent="";
   }catch(err){ console.error(err); updateStatus("❌ Error al guardar tarima.",'error'); }
 }
 
@@ -382,15 +385,14 @@ async function generarNuevoFolio(){
 
 // --- CONSULTA TARIMAS ---
 async function consultarTarimas(){
-  const q=query(collection(db,"tarimas_confirmadas"), orderBy("fechaHora","desc"));
-  const snapshot = await getDocs(q);
+  const snapshot = await getDocs(collection(db,"tarimas_confirmadas"));
   let html="";
-  snapshot.forEach(docu=>{
-    const d=docu.data();
-    const cajasList=d.cajas.map(c=>`<li>${c.codigoCaja} (Orden ${c.numeroOrden})</li>`).join("");
+  snapshot.forEach(d=>{
+    const data=d.data();
+    const cajasList = data.cajas.map(c=>`<li>${c.codigoCaja} (Orden ${c.numeroOrden})</li>`).join("");
     html+=`<div class="tarimaBox">
       <details>
-        <summary>${d.folio} - ${d.usuario} - ${d.fechaHora.toDate().toLocaleString()}</summary>
+        <summary>${data.folio} - ${data.usuario} - ${data.fechaHora.toDate().toLocaleString()}</summary>
         <ul>${cajasList}</ul>
       </details>
     </div>`;
