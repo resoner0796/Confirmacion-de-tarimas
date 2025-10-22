@@ -20,7 +20,8 @@
       font-family: 'Times New Roman', Times, serif;
       font-size: 42px;
       color: white;
-      margin-bottom: 10px;
+      margin: 0 auto 10px auto;
+      text-align: center;
     }
     .card {
       background: rgba(255, 255, 255, 0.1);
@@ -30,7 +31,7 @@
       border-radius: 20px;
       text-align: center;
       width: 90%;
-      max-width: 500px;
+      max-width: 550px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
     input, select {
@@ -56,9 +57,11 @@
     .btn-green { background-color: rgba(76,175,80,0.6); }
     .btn-danger { background-color: rgba(255,59,48,0.6); }
     .btn-orange { background-color: rgba(255,193,7,0.7); color: #000; }
+    .btn-blue { background-color: rgba(0, 150, 255,0.6); }
     #statusMessage { margin-top: 15px; font-weight: bold; }
     ul { list-style: none; padding: 0; text-align: left; }
     li { background: rgba(255,255,255,0.1); margin-bottom: 6px; padding: 8px; border-radius: 8px; }
+    .user-actions { display: flex; gap: 5px; margin-top: 5px; }
   </style>
 </head>
 <body>
@@ -72,7 +75,6 @@
       query, where, orderBy, Timestamp 
     } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-    // --- CONFIGURACIÓN FIREBASE ---
     const firebaseConfig = {
       apiKey: "AIzaSyDtlj3ppT9WBGMR60SZx0TZmAo3BXQWDX0",
       authDomain: "rastreador-de-ordenes.firebaseapp.com",
@@ -91,7 +93,6 @@
     let cajasTarima = [];
     const appDiv = document.getElementById('app');
 
-    // --- UI UTILIDADES ---
     function updateStatus(msg, type = 'info') {
       const el = document.getElementById('statusMessage');
       if (!el) return;
@@ -191,7 +192,11 @@
       snapshot.forEach(docu => {
         const data = docu.data();
         html += `<li>${data.nombre} (${data.rol}) - Gafete: ${data.gafete}
-        <button class="btn-danger" style="margin-top:5px;" onclick="eliminarUsuario('${docu.id}')">Eliminar</button></li>`;
+          <div class="user-actions">
+            <button class="btn-blue" onclick="editarUsuario('${docu.id}', '${data.nombre}', '${data.gafete}', '${data.rol}')">✏️ Editar</button>
+            <button class="btn-danger" onclick="eliminarUsuario('${docu.id}')">❌ Eliminar</button>
+          </div>
+        </li>`;
       });
       lista.innerHTML = html || '<li>No hay usuarios registrados.</li>';
     }
@@ -214,7 +219,14 @@
       cargarUsuarios();
     }
 
-    // --- REGISTRO DE TARIMAS CONFIRMADAS ---
+    window.editarUsuario = function(id, nombre, gafete, rol) {
+      const nuevoNombre = prompt("Editar nombre:", nombre) || nombre;
+      const nuevoGafete = prompt("Editar gafete:", gafete) || gafete;
+      const nuevoRol = prompt("Editar rol (empleado/administrador):", rol) || rol;
+      setDoc(doc(db, "users", id), { nombre: nuevoNombre, gafete: nuevoGafete, rol: nuevoRol }).then(() => cargarUsuarios());
+    }
+
+    // --- TARIMAS ---
     function mostrarConfirmacionTarimas() {
       setView(`
         <p class="brand-title">CORNING</p>
@@ -225,9 +237,12 @@
           <input id="codigoTarima" placeholder="Escanear BX...">
           <button id="btnEscanear" class="btn-green">Agregar Caja</button>
           <hr>
-          <h4>Cajas agrupadas por orden:</h4>
+          <h4>Cajas de la tarima actual:</h4>
           <ul id="listaConfirmadas"></ul>
           <p id="totalCajas">Total: 0 cajas</p>
+          <hr>
+          <button id="btnMostrarTarimas" class="btn-blue">📦 Tarimas Confirmadas</button>
+          <div id="tarimasHistoricas" style="margin-top:10px;"></div>
           <hr>
           <button id="btnConfirmar" class="btn-primary">✅ Confirmar Tarima</button>
           <button id="btnSalir" class="btn-danger">❌ Cerrar Sesión</button>
@@ -239,19 +254,19 @@
       document.getElementById('btnEscanear').onclick = escanearCaja;
       document.getElementById('btnConfirmar').onclick = confirmarTarima;
       document.getElementById('btnSalir').onclick = cerrarSesion;
+      document.getElementById('btnMostrarTarimas').onclick = mostrarTarimasHistoricas;
 
       document.getElementById('codigoTarima').addEventListener('keypress', e => {
         if (e.key === 'Enter') escanearCaja();
       });
 
-      cargarConfirmadasHoy();
+      renderTarima();
     }
 
     function renderTarima() {
       const lista = document.getElementById("listaConfirmadas");
       const folioEl = document.getElementById("folioActual");
       folioEl.textContent = tarimaActual ? `Tarima: ${tarimaActual.folio}` : '';
-
       const grouped = {};
       cajasTarima.forEach(caja => {
         if (!grouped[caja.numeroOrden]) grouped[caja.numeroOrden] = [];
@@ -261,26 +276,21 @@
       let html = "";
       Object.entries(grouped).forEach(([orden, cajas]) => {
         const ids = cajas.map(c => `<li>${c} <button onclick="eliminarCaja('${c}')">❌</button></li>`).join("");
-        html += `
-          <li>
-            <details>
-              <summary>Orden: ${orden} (${cajas.length} cajas)</summary>
-              <ul>${ids}</ul>
-            </details>
-          </li>`;
+        html += `<li>
+          <details>
+            <summary>Orden: ${orden} (${cajas.length} cajas)</summary>
+            <ul>${ids}</ul>
+          </details>
+        </li>`;
       });
-
       lista.innerHTML = html || "<li>Sin cajas escaneadas</li>";
-
-      const total = cajasTarima.length;
-      document.getElementById("totalCajas").textContent = `Total: ${total} cajas`;
+      document.getElementById("totalCajas").textContent = `Total: ${cajasTarima.length} cajas`;
     }
 
-    function eliminarCaja(codigo) {
+    window.eliminarCaja = function(codigo) {
       cajasTarima = cajasTarima.filter(c => c.codigoCaja !== codigo);
       renderTarima();
     }
-    window.eliminarCaja = eliminarCaja;
 
     async function crearNuevaTarima() {
       updateStatus("Creando tarima...", "info");
@@ -293,10 +303,7 @@
 
     async function escanearCaja() {
       const codigo = document.getElementById("codigoTarima").value.trim().toUpperCase();
-      if (!codigo.startsWith("BX")) {
-        updateStatus("❌ El código debe empezar con BX", "error");
-        return;
-      }
+      if (!codigo.startsWith("BX")) { updateStatus("❌ El código debe empezar con BX", "error"); return; }
       const orden = codigo.slice(2, 12);
       cajasTarima.push({ codigoCaja: codigo, numeroOrden: orden });
       document.getElementById("codigoTarima").value = "";
@@ -304,10 +311,7 @@
     }
 
     async function confirmarTarima() {
-      if (!tarimaActual || cajasTarima.length === 0) {
-        updateStatus("❌ No hay tarima activa o sin cajas.", "error");
-        return;
-      }
+      if (!tarimaActual || cajasTarima.length === 0) { updateStatus("❌ No hay tarima activa o sin cajas.", "error"); return; }
       try {
         await addDoc(collection(db, "tarimas_confirmadas"), {
           folio: tarimaActual.folio,
@@ -320,7 +324,6 @@
         cajasTarima = [];
         tarimaActual = null;
         renderTarima();
-        cargarConfirmadasHoy();
       } catch (err) {
         console.error(err);
         updateStatus("❌ Error al guardar tarima.", "error");
@@ -341,25 +344,23 @@
       return `TAR-${siguiente}`;
     }
 
-    async function cargarConfirmadasHoy() {
-      const lista = document.getElementById('listaConfirmadas');
-      if (!lista) return;
-      lista.innerHTML = '<li>Cargando...</li>';
-      const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-      const mañana = new Date(hoy); mañana.setDate(mañana.getDate() + 1);
-      const q = query(collection(db, "tarimas_confirmadas"), orderBy("fechaHora", "desc"));
-      const snapshot = await getDocs(q);
-      let html = "";
+    async function mostrarTarimasHistoricas() {
+      const cont = document.getElementById("tarimasHistoricas");
+      cont.innerHTML = '<p>Cargando...</p>';
+      const snapshot = await getDocs(query(collection(db, "tarimas_confirmadas"), orderBy("fechaHora", "desc")));
+      let html = '';
       snapshot.forEach(docu => {
         const d = docu.data();
         if (d.gafete === usuarioActual.gafete) {
           const fecha = d.fechaHora.toDate();
-          if (fecha >= hoy && fecha < mañana) {
-            html += `<li>${d.folio} — ${fecha.toLocaleTimeString()}</li>`;
-          }
+          const cajasHtml = d.cajas.map(c => `<li>${c.codigoCaja}</li>`).join("");
+          html += `<details>
+            <summary>${d.folio} - ${fecha.toLocaleString()}</summary>
+            <ul>${cajasHtml}</ul>
+          </details>`;
         }
       });
-      lista.innerHTML = html || '<li>No has confirmado tarimas hoy.</li>';
+      cont.innerHTML = html || '<p>No hay tarimas confirmadas.</p>';
     }
 
     function cerrarSesion() {
@@ -369,7 +370,6 @@
       mostrarLogin();
     }
 
-    // --- INICIO ---
     mostrarLogin();
   </script>
 </body>
