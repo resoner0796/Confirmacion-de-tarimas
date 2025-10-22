@@ -62,7 +62,7 @@ button:hover { transform: scale(1.02); }
 .btn-blue { background-color: rgba(0, 150, 255,0.6); }
 #statusMessage { margin-top: 10px; font-weight: bold; min-height: 20px; text-align:center; }
 ul { list-style: none; padding: 0; text-align: left; }
-li { background: rgba(255,255,255,0.1); margin-bottom: 6px; padding: 8px; border-radius: 8px; }
+li { background: rgba(255,255,255,0.1); margin-bottom: 6px; padding: 8px; border-radius: 8px; transition: all 0.4s ease; }
 .user-actions { display: flex; gap: 5px; margin-top: 5px; }
 .tarimaBox { background: rgba(255,255,255,0.12); border-radius: 10px; padding: 12px; margin: 5px 0; box-shadow:0 4px 12px rgba(0,0,0,0.2);}
 #modalContainer {
@@ -97,8 +97,19 @@ li { background: rgba(255,255,255,0.1); margin-bottom: 6px; padding: 8px; border
 }
 details summary { cursor:pointer; font-weight:bold; }
 #scanFeedback { text-align:center; margin-bottom:8px; font-weight:bold; min-height:20px; }
-.newScan { background: rgba(76,175,80,0.6); border-radius:6px; transition: all 0.5s; }
-#counter { font-weight:bold; margin-top:5px; }
+.newScan { background: rgba(76,175,80,0.6); border-radius:6px; transition: all 0.5s; animation: highlight 0.6s ease; }
+@keyframes highlight {
+  0% { transform: scale(1); background: rgba(76,175,80,0.4);}
+  50% { transform: scale(1.05); background: rgba(76,175,80,0.9);}
+  100% { transform: scale(1); background: rgba(76,175,80,0.6);}
+}
+#counter { font-weight:bold; margin-top:5px; display:inline-block; transition: all 0.4s ease; }
+.counterFlash { animation: flashCounter 0.5s ease; }
+@keyframes flashCounter {
+  0% { transform: scale(1); color:#fff;}
+  50% { transform: scale(1.2); color:#4CAF50;}
+  100% { transform: scale(1); color:#fff;}
+}
 </style>
 </head>
 <body>
@@ -304,7 +315,6 @@ function mostrarConfirmacionTarimas(){
 
 // --- FUNCIONES TARIMAS ---
 async function crearNuevaTarima(){
-  updateStatus("Creando tarima...", "info");
   const folio = await generarNuevoFolio();
   tarimaActual = { folio, cajas: [] };
   cajasTarima = [];
@@ -322,7 +332,7 @@ function renderTarima(){
   });
   let html="";
   Object.entries(grouped).forEach(([orden,cajas])=>{
-    const ids=cajas.map(c=>`<li>${c} <button onclick="eliminarCaja('${c}')" class="btn-danger">❌</button></li>`).join("");
+    const ids=cajas.map(c=>`<li class="newScan">${c} <button onclick="eliminarCaja('${c}')" class="btn-danger">❌</button></li>`).join("");
     html+=`<li class="tarimaBox">
       <details>
         <summary>Orden: ${orden} (${cajas.length} cajas)</summary>
@@ -331,7 +341,11 @@ function renderTarima(){
     </li>`;
   });
   lista.innerHTML=html||"<li>Sin cajas escaneadas</li>";
-  document.getElementById("counter").textContent=`Total: ${cajasTarima.length} cajas`;
+  const counterEl = document.getElementById("counter");
+  counterEl.textContent=`Total: ${cajasTarima.length} cajas`;
+  counterEl.classList.remove("counterFlash");
+  void counterEl.offsetWidth; 
+  counterEl.classList.add("counterFlash");
 }
 
 function eliminarCaja(codigo){
@@ -360,32 +374,22 @@ async function confirmarTarima(){
       fechaHora:Timestamp.now(),
       cajas:cajasTarima
     });
-    abrirModal(`<h2>✅ Tarima ${tarimaActual.folio} confirmada!</h2>`);
-    cajasTarima=[];
-    tarimaActual=null;
-    renderTarima();
-    document.getElementById("scanFeedback").textContent="";
+    abrirModal(`<h2>✅ Tarima ${tarimaActual.folio} confirmada con éxito</h2>`);
+    tarimaActual=null; cajasTarima=[];
     document.getElementById("folioActual").textContent="";
-  }catch(err){ console.error(err); updateStatus("❌ Error al guardar tarima.",'error'); }
+    document.getElementById("scanFeedback").textContent="";
+    renderTarima();
+  }catch(e){ console.error(e); updateStatus("Error al confirmar tarima",'error'); }
 }
 
 async function generarNuevoFolio(){
   const snapshot = await getDocs(collection(db,"tarimas_confirmadas"));
-  let max=0;
-  snapshot.forEach(docu=>{
-    const folio=docu.data().folio;
-    if(folio && folio.startsWith("TAR-")){
-      const n=parseInt(folio.split("-")[1]);
-      if(n>max) max=n;
-    }
-  });
-  const siguiente=(max+1).toString().padStart(3,"0");
-  return `TAR-${siguiente}`;
+  return `TAR-${(snapshot.size+1).toString().padStart(3,'0')}`;
 }
 
 // --- CONSULTA TARIMAS ---
 async function consultarTarimas(){
-  const snapshot = await getDocs(collection(db,"tarimas_confirmadas"));
+  const snapshot = await getDocs(query(collection(db,"tarimas_confirmadas"), orderBy("fechaHora","desc")));
   let html="";
   snapshot.forEach(d=>{
     const data=d.data();
@@ -408,9 +412,8 @@ function cerrarSesion(){
   mostrarLogin();
 }
 
-// INICIAR
+// --- INICIAR ---
 mostrarLogin();
 </script>
-
 </body>
 </html>
