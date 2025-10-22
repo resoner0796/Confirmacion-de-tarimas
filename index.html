@@ -128,7 +128,6 @@ details summary { cursor:pointer; font-weight:bold; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc, query, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-// --- FIREBASE CONFIG ---
 const firebaseConfig = {
   apiKey: "AIzaSyDtlj3ppT9WBGMR60SZx0TZmAo3BXQWDX0",
   authDomain: "rastreador-de-ordenes.firebaseapp.com",
@@ -146,7 +145,6 @@ let tarimaActual = null;
 let cajasTarima = [];
 const appDiv = document.getElementById('app');
 
-// --- MODAL ---
 function abrirModal(html){ 
   document.getElementById('modalBody').innerHTML=html; 
   document.getElementById('modalContainer').style.display='flex'; 
@@ -155,7 +153,6 @@ document.getElementById('modalClose').onclick = ()=>{
   document.getElementById('modalContainer').style.display='none'; 
 };
 
-// --- UTILIDADES ---
 function updateStatus(msg,type='info'){ 
   const el=document.getElementById('statusMessage'); 
   if(!el) return; 
@@ -166,7 +163,6 @@ function updateStatus(msg,type='info'){
 }
 function setView(html){ appDiv.innerHTML=html; }
 
-// --- LOGIN ---
 function mostrarLogin(){
   setView(`
     <p class="brand-title">CORNING</p>
@@ -203,7 +199,7 @@ async function verificarGafete(){
   } catch(e){ console.error(e); updateStatus("Error al conectar con Firestore.",'error'); }
 }
 
-// --- ADMINISTRACIÓN ---
+// --- ADMIN ---
 async function mostrarAdministracion(){
   setView(`
     <p class="brand-title">CORNING</p>
@@ -279,7 +275,7 @@ window.eliminarUsuario=async function(id){
   cargarUsuarios();
 }
 
-// --- REGISTRO DE TARIMAS ---
+// --- REGISTRO TARIMAS ---
 function mostrarConfirmacionTarimas(){
   setView(`
     <p class="brand-title">CORNING</p>
@@ -314,7 +310,6 @@ function mostrarConfirmacionTarimas(){
   renderTarima();
 }
 
-// --- FUNCIONES TARIMAS ---
 async function crearNuevaTarima(){
   updateStatus("");
   const folio=await generarNuevoFolio();
@@ -327,7 +322,11 @@ async function crearNuevaTarima(){
 function renderTarima(){
   const lista=document.getElementById("listaConfirmadas");
   const grouped={};
-  cajasTarima.forEach(caja=>{ if(!grouped[caja.numeroOrden]) grouped[caja.numeroOrden]=[]; grouped[caja.numeroOrden].push(caja.codigoCaja); });
+  cajasTarima.forEach(caja=>{
+    const numeroOrden=caja.codigoCaja.substring(2,12); // 10 dígitos después de BX
+    if(!grouped[numeroOrden]) grouped[numeroOrden]=[];
+    grouped[numeroOrden].push(caja.codigoCaja);
+  });
   let html="";
   Object.entries(grouped).forEach(([orden,cajas])=>{
     const ids=cajas.map(c=>`<li>${c} <button onclick="eliminarCaja('${c}')" class="btn-danger">❌</button></li>`).join("");
@@ -354,20 +353,17 @@ function escanearCaja(){
   const input=document.getElementById("codigoTarima");
   const codigo=input.value.trim();
   if(!codigo){ updateStatus("Escanea una caja",'error'); return; }
-  const numeroOrden=codigo.substring(0,3); // ejemplo
-  cajasTarima.push({codigoCaja:codigo,numeroOrden});
+  cajasTarima.push({codigoCaja:codigo});
   updateStatus(`✅ Caja ${codigo} escaneada`,'success');
   input.value='';
   renderTarima();
 }
 
-// eliminar caja
 window.eliminarCaja=function(codigo){
   cajasTarima=cajasTarima.filter(c=>c.codigoCaja!==codigo);
   renderTarima();
 }
 
-// confirmar tarima
 async function confirmarTarima(){
   if(!tarimaActual){ updateStatus('❌ Crea primero una tarima','error'); return; }
   if(cajasTarima.length===0){ updateStatus('❌ Escanea al menos una caja','error'); return; }
@@ -381,7 +377,6 @@ async function confirmarTarima(){
   renderTarima();
 }
 
-// consultar tarimas confirmadas
 async function consultarTarimas(){
   const snapshot=await getDocs(collection(db,"tarimas"));
   let html="<h3>Tarimas Confirmadas</h3><ul>";
@@ -402,37 +397,31 @@ async function consultarTarimas(){
   abrirModal(html);
 }
 
-// consultar tarimas del día
 async function consultarTarimasHoy(){
   const snapshot=await getDocs(collection(db,"tarimas"));
-  let html="<h3>Tarimas de hoy</h3><ul>";
-  const hoy=new Date().toLocaleDateString();
+  let html="<h3>Tarimas Confirmadas</h3><ul>";
   snapshot.forEach(docu=>{
     const t=docu.data();
     const fecha=new Date(t.fecha.seconds*1000).toLocaleString();
-    if(fecha.includes(hoy)){
-      const cajasHTML=t.cajas.map(c=>`<li>${c.codigoCaja}</li>`).join("");
-      html+=`<li class="tarimaBox">
-        <b>${t.folio}</b>
-        <details>
-          <summary>Ver detalles (${t.cajas.length})</summary>
-          <ul>${cajasHTML}</ul>
-        </details>
-      </li>`;
-    }
+    const cajasHTML=t.cajas.map(c=>`<li>${c.codigoCaja}</li>`).join("");
+    html+=`<li class="tarimaBox">
+      <b>${t.folio}</b> - ${fecha}
+      <details>
+        <summary>Ver detalles (${t.cajas.length} cajas)</summary>
+        <ul>${cajasHTML}</ul>
+      </details>
+    </li>`;
   });
   html+="</ul>";
   abrirModal(html);
 }
 
-// generar folio auto
 async function generarNuevoFolio(){
   const snapshot=await getDocs(collection(db,"tarimas"));
   const count=snapshot.size+1;
   return `TAR-${String(count).padStart(3,'0')}`;
 }
 
-// cerrar sesión
 function cerrarSesion(){
   usuarioActual=null;
   tarimaActual=null;
