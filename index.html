@@ -150,6 +150,26 @@ function abrirModal(html){
 }
 document.getElementById('modalClose').onclick = ()=>{ document.getElementById('modalContainer').style.display='none'; }
 
+// --- 2. NUEVA FUNCIÓN: Modal de Confirmación ---
+function abrirModalConfirmacion(mensaje, onConfirmCallback) {
+  const html = `
+    <h4>⚠️ Confirmación Requerida</h4>
+    <p>${mensaje}</p>
+    <div style="display: flex; gap: 10px; margin-top: 20px;">
+      <button id="btnModalCancelar" class="btn-primary" style="flex: 1; background-color: rgba(0,122,255,0.6);">Cancelar</button>
+      <button id="btnModalConfirmar" class="btn-danger" style="flex: 1; background-color: rgba(255,59,48,0.6);">Eliminar</button>
+    </div>
+  `;
+  
+  abrirModal(html); // Reutilizamos la función de abrir modal
+  
+  // Añadimos los listeners a los nuevos botones
+  document.getElementById('btnModalCancelar').onclick = () => {
+    document.getElementById('modalContainer').style.display = 'none';
+  };
+  document.getElementById('btnModalConfirmar').onclick = onConfirmCallback;
+}
+
 function updateStatus(msg,type='info'){
   const el=document.getElementById('statusMessage');
   if(!el) return;
@@ -160,15 +180,30 @@ function updateStatus(msg,type='info'){
 }
 function setView(html){ appDiv.innerHTML=html; }
 
-// --- 3. NUEVA FUNCIÓN: Formato de Fecha DD-MM-YY HH:MM ---
+// --- 1. NUEVA FUNCIÓN: Feedback de escaneo unificado ---
+function showScanFeedback(msg, type = 'success') {
+  const feedback = document.getElementById('scanFeedback');
+  if (!feedback) return;
+  
+  feedback.textContent = msg;
+  feedback.style.color = type === 'error' ? '#FF5252' : '#4CAF50'; // Rojo para error, verde para éxito
+  
+  // Limpia el mensaje después de 2.5 segundos
+  setTimeout(() => {
+    feedback.textContent = '';
+    feedback.style.color = 'inherit'; // Restaura color original
+  }, 2500);
+}
+
+
 function formatarFechaHora(timestamp) {
   if (!timestamp || typeof timestamp.seconds !== 'number') {
     return 'Fecha no registrada';
   }
   const d = new Date(timestamp.seconds * 1000);
   const dia = String(d.getDate()).padStart(2, '0');
-  const mes = String(d.getMonth() + 1).padStart(2, '0'); // +1 porque los meses son 0-indexados
-  const anio = String(d.getFullYear()).slice(-2); // Últimos 2 dígitos del año
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const anio = String(d.getFullYear()).slice(-2);
   const hora = String(d.getHours()).padStart(2, '0');
   const min = String(d.getMinutes()).padStart(2, '0');
   
@@ -283,16 +318,28 @@ window.editarUsuario=async function(id){
   if(newNombre && newRol){ await setDoc(doc(db,"users",id),{ nombre:newNombre, gafete:data.gafete, rol:newRol }); cargarUsuarios(); }
 }
 
-window.confirmarEliminarTarima = async function(docId) {
-  if (confirm("¿Estás seguro de que quieres eliminar esta tarima? Esta acción no se puede deshacer.")) {
+// --- 2. AJUSTE: Función de eliminar tarima actualizada para usar el modal ---
+window.confirmarEliminarTarima = function(docId) {
+  const mensaje = "¿Estás seguro de que quieres eliminar esta tarima? Esta acción no se puede deshacer.";
+
+  // Esta función se ejecutará SÓLO si el usuario presiona "Eliminar" en el modal
+  const onConfirmCallback = async () => {
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = "<h3>Eliminando...</h3><p>Por favor espera.</p>"; // Feedback de carga
+
     try {
       await deleteDoc(doc(db, "tarimas_confirmadas", docId));
-      document.getElementById('modalBody').innerHTML = "<h3>✅ Tarima Eliminada</h3><p>La tarima ha sido eliminada exitosamente. Cierra este modal y vuelve a consultar para ver la lista actualizada.</p>";
+      // Mostramos éxito dentro del mismo modal
+      modalBody.innerHTML = "<h3>✅ Tarima Eliminada</h3><p>La tarima ha sido eliminada exitosamente. Cierra este modal y vuelve a consultar para ver la lista actualizada.</p>";
     } catch (e) {
       console.error("Error al eliminar tarima: ", e);
-      document.getElementById('modalBody').innerHTML = "<h3>❌ Error</h3><p>No se pudo eliminar la tarima.</p>";
+      // Mostramos error dentro del mismo modal
+      modalBody.innerHTML = "<h3>❌ Error</h3><p>No se pudo eliminar la tarima.</p>";
     }
-  }
+  };
+
+  // Llamamos a la nueva función de modal de confirmación
+  abrirModalConfirmacion(mensaje, onConfirmCallback);
 }
 
 // --- TARIMAS ---
@@ -370,25 +417,27 @@ window.eliminarCaja=eliminarCaja;
 
 async function escanearCaja(){
   const codigo=document.getElementById('codigoTarima').value.trim().toUpperCase();
+  
+  // --- 1. AJUSTE: Usamos showScanFeedback para el error de prefijo ---
   if(!codigo.startsWith("BX")){ 
-    updateStatus("❌ El código debe empezar con BX",'error'); 
+    showScanFeedback("❌ El código debe empezar con BX", 'error'); 
     return; 
   }
 
-  // --- 1. AJUSTE: Verificación de duplicados ---
+  // --- 1. AJUSTE: Usamos showScanFeedback para el error de duplicado ---
   if (cajasTarima.some(caja => caja.codigoCaja === codigo)) {
-    updateStatus(`❌ El BX ${codigo} ya fue escaneado en esta tarima.`, 'error');
+    showScanFeedback(`❌ El BX ${codigo} ya fue escaneado en esta tarima.`, 'error');
     document.getElementById('codigoTarima').value='';
-    return; // Detiene la función aquí si está duplicado
+    return;
   }
   
   const orden=codigo.slice(2,12);
   cajasTarima.push({codigoCaja:codigo, numeroOrden:orden});
   renderTarima();
   document.getElementById('codigoTarima').value='';
-  const feedback=document.getElementById('scanFeedback');
-  feedback.textContent=`✅ ${codigo} escaneada`;
-  setTimeout(()=>{feedback.textContent='';},1800);
+  
+  // --- 1. AJUSTE: Usamos showScanFeedback para el mensaje de éxito ---
+  showScanFeedback(`✅ ${codigo} escaneada`, 'success');
 }
 
 async function confirmarTarima(){
@@ -463,7 +512,6 @@ async function consultarMisTarimas() {
         </details>`;
       });
       
-      // --- 3. AJUSTE: Usamos la nueva función de formato de fecha ---
       const fecha = formatarFechaHora(t.fecha);
       
       html += `<li class="tarimaBox">
@@ -494,7 +542,6 @@ async function consultarTarimas(){
 
   tarimas.forEach(t => {
     const folio=t.folio;
-    // --- 2. AJUSTE: Se usa t.gafete directamente ---
     const creador = t.gafete || 'Gafete N/A';
     
     const cajas=t.cajas||[];
@@ -512,7 +559,6 @@ async function consultarTarimas(){
       </details>`;
     });
     
-    // --- 3. AJUSTE: Usamos la nueva función de formato de fecha ---
     const fecha = formatarFechaHora(t.fecha);
     
     html+=`<li class="tarimaBox">
