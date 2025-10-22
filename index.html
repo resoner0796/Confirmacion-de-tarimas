@@ -217,14 +217,17 @@
       setView(`
         <p class="brand-title">CORNING</p>
         <div class="card">
-          <h2>✅ Registrar Tarima Confirmada</h2>
-          <h4>Hola, ${usuarioActual.nombre}</h4>
-          <input id="codigoTarima" placeholder="Escanear o ingresar BX...">
-          <button id="btnConfirmar" class="btn-green">Confirmar</button>
-          <hr>
-          <h4>Confirmadas Hoy:</h4>
-          <ul id="listaConfirmadas"></ul>
-          <hr>
+          <h2>✅ Registrar Tarima</h2>
+<button id="btnNuevaTarima" class="btn-orange">➕ Crear Nueva Tarima</button>
+<h4 id="folioActual"></h4>
+<input id="codigoTarima" placeholder="Escanear BX...">
+<button id="btnEscanear" class="btn-green">Agregar Caja</button>
+<hr>
+<h4>Cajas agrupadas por orden:</h4>
+<ul id="listaConfirmadas"></ul>
+<p id="totalCajas">Total: 0 cajas</p>
+<hr>
+<button id="btnConfirmar" class="btn-primary">✅ Confirmar Tarima</button>
           <button id="btnSalir" class="btn-danger">❌ Cerrar Sesión</button>
           <div id="statusMessage"></div>
         </div>
@@ -237,27 +240,102 @@
       cargarConfirmadasHoy();
     }
 
+let tarimaActual = null;
+let cajasTarima = [];
+
+async function crearNuevaTarima() {
+  updateStatus("Creando tarima...", "info");
+  const folio = await generarNuevoFolio();
+  tarimaActual = { folio, cajas: [] };
+  cajasTarima = [];
+  updateStatus(`Tarima ${folio} lista para escanear.`, "success");
+  renderTarima();
+}
+
+function renderTarima() {
+  const lista = document.getElementById("listaConfirmadas");
+  const grouped = {};
+
+  cajasTarima.forEach(caja => {
+    if (!grouped[caja.numeroOrden]) grouped[caja.numeroOrden] = [];
+    grouped[caja.numeroOrden].push(caja.codigoCaja);
+  });
+
+  let html = "";
+  Object.entries(grouped).forEach(([orden, cajas]) => {
+    const ids = cajas.map(c => `<li>${c} <button onclick="eliminarCaja('${c}')">❌</button></li>`).join("");
+    html += `
+      <li>
+        <details>
+          <summary>Orden: ${orden} (${cajas.length} cajas)</summary>
+          <ul>${ids}</ul>
+        </details>
+      </li>`;
+  });
+
+  lista.innerHTML = html || "<li>Sin cajas escaneadas</li>";
+
+  const total = cajasTarima.length;
+  document.getElementById("totalCajas").textContent = `Total: ${total} cajas`;
+}
+
+function eliminarCaja(codigo) {
+  cajasTarima = cajasTarima.filter(c => c.codigoCaja !== codigo);
+  renderTarima();
+}
+window.eliminarCaja = eliminarCaja;
+
+
     async function confirmarTarima() {
-      const codigo = document.getElementById('codigoTarima').value.trim();
-      if (!codigo.toUpperCase().startsWith('BX')) {
-        updateStatus("❌ El código debe empezar con 'BX'.", 'error');
-        return;
-      }
-      try {
-        await addDoc(collection(db, "tarimas_confirmadas"), {
-          tarimaId: codigo,
-          usuario: usuarioActual.nombre,
-          gafete: usuarioActual.gafete,
-          fechaHora: Timestamp.now()
-        });
-        updateStatus(`✅ Tarima ${codigo} confirmada.`, 'success');
-        document.getElementById('codigoTarima').value = '';
-        cargarConfirmadasHoy();
-      } catch (err) {
-        console.error(err);
-        updateStatus("❌ Error al guardar.", 'error');
-      }
+  if (!tarimaActual || cajasTarima.length === 0) {
+    updateStatus("❌ No hay tarima activa o sin cajas.", "error");
+    return;
+  }
+  try {
+    await addDoc(collection(db, "tarimas_confirmadas"), {
+      folio: tarimaActual.folio,
+      usuario: usuarioActual.nombre,
+      gafete: usuarioActual.gafete,
+      fechaHora: Timestamp.now(),
+      cajas: cajasTarima
+    });
+    updateStatus(`✅ Tarima ${tarimaActual.folio} confirmada.`, "success");
+    cajasTarima = [];
+    tarimaActual = null;
+    renderTarima();
+  } catch (err) {
+    console.error(err);
+    updateStatus("❌ Error al guardar tarima.", "error");
+  }
+}
+
+async function escanearCaja() {
+  const codigo = document.getElementById("codigoTarima").value.trim().toUpperCase();
+  if (!codigo.startsWith("BX")) {
+    updateStatus("❌ El código debe empezar con BX", "error");
+    return;
+  }
+  const orden = codigo.slice(2, 12);
+  cajasTarima.push({ codigoCaja: codigo, numeroOrden: orden });
+  document.getElementById("codigoTarima").value = "";
+  renderTarima();
+}
+
+
+
+async function generarNuevoFolio() {
+  const snapshot = await getDocs(collection(db, "tarimas_confirmadas"));
+  let max = 0;
+  snapshot.forEach(docu => {
+    const folio = docu.data().folio;
+    if (folio && folio.startsWith("TAR-")) {
+      const n = parseInt(folio.split("-")[1]);
+      if (n > max) max = n;
     }
+  });
+  const siguiente = (max + 1).toString().padStart(3, "0");
+  return `TAR-${siguiente}`;
+}
 
     async function cargarConfirmadasHoy() {
       const lista = document.getElementById('listaConfirmadas');
