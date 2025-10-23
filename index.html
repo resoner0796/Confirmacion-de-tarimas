@@ -161,7 +161,6 @@ const firebaseConfig = {
 const appFB = initializeApp(firebaseConfig);
 const db = getFirestore(appFB);
 
-// --- 1. AJUSTE: Definimos el nombre de la nueva colección ---
 const USERS_COLLECTION_NAME = "users_tarimas";
 const SUPER_ADMIN_GAFETE = "528734";
 
@@ -257,7 +256,6 @@ function mostrarLogin(){
   document.getElementById('gafeteInput').addEventListener('keypress',e=>{ if(e.key==='Enter') verificarGafete(); });
 }
 
-// --- 2. AJUSTE: Función de verificarGafete con lógica de migración ---
 async function verificarGafete(){
   const gafete = document.getElementById('gafeteInput').value.trim();
   if(!gafete){ updateStatus("Ingresa tu gafete",'error'); return; }
@@ -267,15 +265,13 @@ async function verificarGafete(){
     const oldUsersRef = collection(db, "users");
     
     let userData = null;
-    let foundIn = null; // 'new', 'old', o null
+    let foundIn = null;
 
-    // 1. Buscar en la nueva colección ('users_tarimas')
     const newSnapshot = await getDocs(query(newUsersRef, where("gafete", "==", gafete)));
     if (!newSnapshot.empty) {
       userData = newSnapshot.docs[0].data();
       foundIn = 'new';
     } else {
-      // 2. Si no se encuentra, buscar en la vieja colección ('users')
       const oldSnapshot = await getDocs(query(oldUsersRef, where("gafete", "==", gafete)));
       if (!oldSnapshot.empty) {
         userData = oldSnapshot.docs[0].data();
@@ -283,28 +279,22 @@ async function verificarGafete(){
       }
     }
 
-    // 3. Si no se encuentra en ninguna y NO es Super Admin, rechazar
     if(!userData && gafete !== SUPER_ADMIN_GAFETE){ 
       updateStatus("❌ Usuario no encontrado.",'error'); 
       return; 
     }
 
-    // 4. Manejar al Super Admin (si no existe en ninguna parte, crearlo en la NUEVA)
     if(gafete === SUPER_ADMIN_GAFETE && !userData){
       userData = { nombre:"Super Admin", gafete, rol:"administrador" };
-      // Usamos el gafete como ID del documento para consistencia
       await setDoc(doc(db, USERS_COLLECTION_NAME, gafete), userData);
       foundIn = 'new';
     }
     
-    // 5. MIGRACIÓN: Si se encontró en la colección vieja, copiarlo a la nueva
     if (foundIn === 'old') {
       console.log(`Migrando usuario ${gafete} a ${USERS_COLLECTION_NAME}...`);
       await setDoc(doc(db, USERS_COLLECTION_NAME, gafete), userData);
-      // No eliminamos el usuario de 'users' por si otras apps lo usan
     }
 
-    // 6. Proceder con el inicio de sesión
     usuarioActual = userData;
     updateStatus(`Bienvenido ${userData.nombre}`,'success');
     setTimeout(()=>{ 
@@ -359,13 +349,12 @@ function mostrarGestionUsuarios() {
   cargarUsuarios();
 }
 
-// --- 3. AJUSTE: Cargar usuarios SÓLO desde la nueva colección ---
+
 async function cargarUsuarios(){
   const lista=document.getElementById('listaUsuarios');
   if (!lista) return;
   
   lista.innerHTML='<li>Cargando...</li>';
-  // Cambiado de "users" a USERS_COLLECTION_NAME
   const snapshot=await getDocs(collection(db, USERS_COLLECTION_NAME));
   let html='';
   snapshot.forEach(docu=>{
@@ -380,31 +369,23 @@ async function cargarUsuarios(){
   lista.innerHTML=html||'<li>No hay usuarios registrados.</li>';
 }
 
-// --- 4. AJUSTE: Agregar usuarios SÓLO a la nueva colección ---
 async function agregarUsuario(){
   const nombre=document.getElementById('nombreUsuario').value.trim();
   const gafete=document.getElementById('gafeteUsuario').value.trim();
   const rol=document.getElementById('rolUsuario').value;
   if(!nombre || !gafete){ updateStatus('❌ Completa todos los campos.','error'); return; }
-  // Cambiado de "users" a USERS_COLLECTION_NAME, usando gafete como ID
   await setDoc(doc(db, USERS_COLLECTION_NAME, gafete),{ nombre, gafete, rol });
   updateStatus('✅ Usuario agregado.','success');
   document.getElementById('nombreUsuario').value='';
   document.getElementById('gafeteUsuario').value='';
   cargarUsuarios();
 }
-
-// --- 5. AJUSTE: Eliminar usuarios SÓLO de la nueva colección ---
 window.eliminarUsuario=async function(id){
   if(id===SUPER_ADMIN_GAFETE){ alert("No puedes eliminar al Super Admin."); return; }
-  // 'id' es el gafete, que es el ID del doc
   await deleteDoc(doc(db, USERS_COLLECTION_NAME, id));
   cargarUsuarios();
 }
-
-// --- 6. AJUSTE: Editar usuarios SÓLO en la nueva colección ---
 window.editarUsuario=async function(id){
-  // 'id' es el gafete (ID del doc). Usamos getDoc para más eficiencia
   const userRef = doc(db, USERS_COLLECTION_NAME, id);
   const userSnap = await getDoc(userRef);
 
@@ -415,7 +396,6 @@ window.editarUsuario=async function(id){
   const newRol=prompt("Editar rol (empleado/administrador):",data.rol);
   
   if(newNombre && newRol){ 
-    // Usamos el 'id' (gafete) para actualizar el doc
     await setDoc(doc(db, USERS_COLLECTION_NAME, id),{ nombre:newNombre, gafete:data.gafete, rol:newRol }); 
     cargarUsuarios(); 
   }
@@ -603,6 +583,7 @@ async function getHistoricoMap() {
   return historicoMap;
 }
 
+// === FUNCIÓN MODIFICADA: buildTarimasHtml (con resaltado de orden) ===
 function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
   let html = `<h3>${isAdmin ? 'Tarimas Confirmadas (Todas)' : 'Mis Tarimas Confirmadas'}</h3>`;
   
@@ -624,20 +605,20 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
     const cajas = t.cajas || [];
     const grouped = {};
 
-    let recibidosCount = 0;
+    let totalRecibidosCount = 0;
     cajas.forEach(caja => {
       const bxCode = caja.codigoCaja;
       if (bxCode && historicoMap.has(bxCode)) {
-        recibidosCount++;
+        totalRecibidosCount++;
       }
     });
 
     let statusBadgeHtml = '';
     if (cajas.length === 0) {
       statusBadgeHtml = `<span class="status-badge status-empty">Vacía</span>`;
-    } else if (recibidosCount === cajas.length) {
+    } else if (totalRecibidosCount === cajas.length) {
       statusBadgeHtml = `<span class="status-badge status-completa">Recibida Completa</span>`;
-    } else if (recibidosCount > 0) {
+    } else if (totalRecibidosCount > 0) {
       statusBadgeHtml = `<span class="status-badge status-parcial">Recibida Parcial</span>`;
     } else {
       statusBadgeHtml = `<span class="status-badge status-no">No Recibida</span>`;
@@ -652,10 +633,15 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
     let detallesHTML = "";
     Object.entries(grouped).forEach(([orden, bx_array]) => {
       let bxHtmlList = '';
+      
+      // --- AJUSTE: Contamos recibidos para ESTA ORDEN ---
+      let ordenRecibidosCount = 0;
+      
       bx_array.forEach(bxCode => {
         const historicoEntry = historicoMap.get(bxCode);
         
         if (historicoEntry) {
+          ordenRecibidosCount++; // Contamos solo los de esta orden
           const fechaRecibido = formatarFechaHora(historicoEntry.fecha);
           const grRecibido = historicoEntry.gr || 'N/A';
           bxHtmlList += `<li style="color: #90EE90; font-weight: bold; background: rgba(76, 175, 80, 0.2);">${bxCode} 
@@ -668,8 +654,21 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
         }
       });
       
+      // --- AJUSTE: Determinamos el estilo del <summary> de la orden ---
+      let orderStatusStyle = '';
+      if (bx_array.length > 0) {
+          if (ordenRecibidosCount === 0) {
+              // Si NINGUNO de esta orden se ha recibido = ROJO
+              orderStatusStyle = 'color: #FFCDD2; font-weight: bold;'; 
+          } else if (ordenRecibidosCount < bx_array.length) {
+              // Si ALGUNOS (pero no todos) se han recibido = AMARILLO
+              orderStatusStyle = 'color: #FFEB3B; font-weight: bold;'; 
+          }
+          // Si (ordenRecibidosCount === bx_array.length) = COMPLETA, no se aplica estilo (blanco)
+      }
+      
       detallesHTML += `<details>
-        <summary>Orden: ${orden} (${bx_array.length} cajas)</summary>
+        <summary style="${orderStatusStyle}">Orden: ${orden} (${bx_array.length} cajas)</summary>
         <ul>${bxHtmlList}</ul>
       </details>`;
     });
