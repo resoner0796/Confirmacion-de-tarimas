@@ -6,16 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="manifest" href="manifest.json">
-
 <meta name="theme-color" content="#0f2027">
-
 <meta name="mobile-web-app-capable" content="yes">
-
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Tarimas">
 <link rel="apple-touch-icon" href="icon-192x192.PNG">
-
 <style>
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -123,6 +119,21 @@ details summary { cursor:pointer; font-weight:bold; }
   50% { transform: scale(1.2); color:#4CAF50;}
   100% { transform: scale(1); color:#fff;}
 }
+
+/* === 1. NUEVO CSS: Etiquetas de estado === */
+.status-badge {
+  font-size: 0.8em;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.status-completa { background-color: rgba(76, 175, 80, 0.7); color: #fff; }
+.status-parcial { background-color: rgba(255, 193, 7, 0.7); color: #000; }
+.status-no { background-color: rgba(255, 82, 82, 0.7); color: #fff; }
+.status-empty { background-color: rgba(158, 158, 158, 0.7); color: #fff; }
+
 </style>
 </head>
 <body>
@@ -156,14 +167,10 @@ let tarimaActual = null;
 let cajasTarima = [];
 const appDiv = document.getElementById('app');
 
-// === AJUSTE: MOVIMOS CERRAR SESIÓN AQUÍ ARRIBA ===
-// Al moverla aquí, nos aseguramos de que esté definida antes de que
-// 'mostrarAdministracion' o 'mostrarConfirmacionTarimas' intenten usarla.
 function cerrarSesion(){ 
   usuarioActual=null; 
   mostrarLogin(); 
 }
-// === FIN DEL AJUSTE ===
 
 function abrirModal(html){
   document.getElementById('modalBody').innerHTML = html;
@@ -284,7 +291,7 @@ function mostrarAdministracion(){
   
   document.getElementById('btnGestionUsuarios').onclick = mostrarGestionUsuarios;
   document.getElementById('btnConsultarTarimas').onclick=consultarTarimas;
-  document.getElementById('btnSalir').onclick=cerrarSesion; // Esto ahora funcionará
+  document.getElementById('btnSalir').onclick=cerrarSesion;
 }
 
 function mostrarGestionUsuarios() {
@@ -401,7 +408,7 @@ function mostrarConfirmacionTarimas(){
   document.getElementById('codigoTarima').addEventListener('keypress',e=>{ if(e.key==='Enter') escanearCaja(); });
   document.getElementById('btnConfirmar').onclick=confirmarTarima;
   document.getElementById('btnMisTarimas').onclick = consultarMisTarimas;
-  document.getElementById('btnSalir').onclick=cerrarSesion; // Esto ahora funcionará
+  document.getElementById('btnSalir').onclick=cerrarSesion;
   actualizarContador();
 }
 
@@ -537,6 +544,7 @@ async function getHistoricoMap() {
   return historicoMap;
 }
 
+// === 2. FUNCIÓN MODIFICADA: buildTarimasHtml ===
 function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
   let html = `<h3>${isAdmin ? 'Tarimas Confirmadas (Todas)' : 'Mis Tarimas Confirmadas'}</h3>`;
   
@@ -557,7 +565,29 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
     const creador = t.gafete || 'Gafete N/A';
     const cajas = t.cajas || [];
     const grouped = {};
-    
+
+    // --- 2.A. Lógica para determinar el estado de la tarima ---
+    let recibidosCount = 0;
+    cajas.forEach(caja => {
+      const bxCode = caja.codigoCaja;
+      if (bxCode && historicoMap.has(bxCode)) {
+        recibidosCount++;
+      }
+    });
+
+    let statusBadgeHtml = '';
+    if (cajas.length === 0) {
+      statusBadgeHtml = `<span class="status-badge status-empty">Vacía</span>`;
+    } else if (recibidosCount === cajas.length) {
+      statusBadgeHtml = `<span class="status-badge status-completa">Recibida Completa</span>`;
+    } else if (recibidosCount > 0) {
+      statusBadgeHtml = `<span class="status-badge status-parcial">Recibida Parcial</span>`;
+    } else { // recibidosCount === 0
+      statusBadgeHtml = `<span class="status-badge status-no">No Recibida</span>`;
+    }
+    // --- Fin de la lógica de estado ---
+
+
     cajas.forEach(c => {
         const orden = c.codigoCaja ? c.codigoCaja.slice(2, 12) : 'N/A';
         if (!grouped[orden]) grouped[orden] = [];
@@ -592,11 +622,12 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
     const fecha = formatarFechaHora(t.fecha);
     
     html += `<li class="tarimaBox">`;
+    // --- 2.B. Añadimos el statusBadgeHtml al HTML ---
     if (isAdmin) {
-      html += `<b>${folio}</b> (Creado por: ${creador})
+      html += `<b>${folio}</b> ${statusBadgeHtml} (Creado por: ${creador})
         <button class="btn-danger" onclick="confirmarEliminarTarima('${t.id}')" style="float:right; width:auto; padding: 5px 10px; margin-top:0; font-size: 12px;">❌</button>`;
     } else {
-      html += `<b>${folio}</b>`;
+      html += `<b>${folio}</b> ${statusBadgeHtml}`;
     }
     
     html += `<details>
