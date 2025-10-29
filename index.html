@@ -256,6 +256,7 @@ function mostrarLogin(){
   document.getElementById('gafeteInput').addEventListener('keypress',e=>{ if(e.key==='Enter') verificarGafete(); });
 }
 
+// --- AJUSTE: VERIFICAR GAFETE (Migración con 'area') ---
 async function verificarGafete(){
   const gafete = document.getElementById('gafeteInput').value.trim();
   if(!gafete){ updateStatus("Ingresa tu gafete",'error'); return; }
@@ -284,15 +285,20 @@ async function verificarGafete(){
       return; 
     }
 
+    // Si es Super Admin y no existe, crearlo con área "Sistemas"
     if(gafete === SUPER_ADMIN_GAFETE && !userData){
-      userData = { nombre:"Super Admin", gafete, rol:"administrador" };
+      userData = { nombre:"Super Admin", gafete, rol:"administrador", area: "Sistemas" };
       await setDoc(doc(db, USERS_COLLECTION_NAME, gafete), userData);
       foundIn = 'new';
     }
     
+    // Si se encontró en 'users', migrarlo a 'users_tarimas' con área "Indefinida"
     if (foundIn === 'old') {
       console.log(`Migrando usuario ${gafete} a ${USERS_COLLECTION_NAME}...`);
-      await setDoc(doc(db, USERS_COLLECTION_NAME, gafete), userData);
+      // Añade el campo 'area' durante la migración
+      const userDataToMigrate = { ...userData, area: userData.area || 'Indefinida' };
+      await setDoc(doc(db, USERS_COLLECTION_NAME, gafete), userDataToMigrate);
+      userData = userDataToMigrate; // Actualiza la variable local para la sesión actual
     }
 
     usuarioActual = userData;
@@ -327,6 +333,7 @@ function mostrarAdministracion(){
   document.getElementById('btnSalir').onclick=cerrarSesion;
 }
 
+// --- AJUSTE: MODAL GESTIÓN DE USUARIOS (con 'area') ---
 function mostrarGestionUsuarios() {
   const html = `
     <h2>👨‍💼 Gestión de Usuarios</h2>
@@ -335,6 +342,15 @@ function mostrarGestionUsuarios() {
     <select id="rolUsuario">
       <option value="empleado">Empleado</option>
       <option value="administrador">Administrador</option>
+    </select>
+    <select id="areaUsuario">
+      <option value="" disabled selected>Selecciona un área</option>
+      <option value="Almacen">Almacén</option>
+      <option value="Logistica">Logística</option>
+      <option value="Produccion">Producción</option>
+      <option value="Calidad">Calidad</option>
+      <option value="Sistemas">Sistemas</option>
+      <option value="Otro">Otro</option>
     </select>
     <button id="btnAgregar" class="btn-green">💾 Agregar Usuario</button>
     <div id="statusMessageModal" style="margin-top: 10px; font-weight: bold; min-height: 20px; text-align:center;"></div>
@@ -349,7 +365,7 @@ function mostrarGestionUsuarios() {
   cargarUsuarios();
 }
 
-
+// --- AJUSTE: CARGAR USUARIOS (mostrar 'area') ---
 async function cargarUsuarios(){
   const lista=document.getElementById('listaUsuarios');
   if (!lista) return;
@@ -359,7 +375,8 @@ async function cargarUsuarios(){
   let html='';
   snapshot.forEach(docu=>{
     const d=docu.data();
-    html+=`<li>${d.nombre} (${d.rol}) - Gafete: ${d.gafete}
+    // Mostramos el rol y el área. Usamos fallback "Sin Área"
+    html+=`<li>${d.nombre} (${d.rol} - ${d.area || 'Sin Área'}) - Gafete: ${d.gafete}
       <div class="user-actions">
         <button class="btn-green" onclick="editarUsuario('${docu.id}')">✏️</button>
         <button class="btn-danger" onclick="eliminarUsuario('${docu.id}')">❌</button>
@@ -369,22 +386,37 @@ async function cargarUsuarios(){
   lista.innerHTML=html||'<li>No hay usuarios registrados.</li>';
 }
 
+// --- AJUSTE: AGREGAR USUARIO (guardar 'area') ---
 async function agregarUsuario(){
   const nombre=document.getElementById('nombreUsuario').value.trim();
   const gafete=document.getElementById('gafeteUsuario').value.trim();
   const rol=document.getElementById('rolUsuario').value;
-  if(!nombre || !gafete){ updateStatus('❌ Completa todos los campos.','error'); return; }
-  await setDoc(doc(db, USERS_COLLECTION_NAME, gafete),{ nombre, gafete, rol });
+  const area=document.getElementById('areaUsuario').value; // <-- NUEVA LÍNEA
+  
+  // Validamos que todos los campos estén llenos (incluida el área)
+  if(!nombre || !gafete || !area || !rol){ 
+    updateStatus('❌ Completa todos los campos.','error'); 
+    return; 
+  }
+  
+  // Guardamos el objeto con el 'area'
+  await setDoc(doc(db, USERS_COLLECTION_NAME, gafete),{ nombre, gafete, rol, area });
+  
   updateStatus('✅ Usuario agregado.','success');
   document.getElementById('nombreUsuario').value='';
   document.getElementById('gafeteUsuario').value='';
+  document.getElementById('areaUsuario').value=''; // <-- NUEVA LÍNEA (resetear select)
+  document.getElementById('rolUsuario').value='empleado';
   cargarUsuarios();
 }
+
 window.eliminarUsuario=async function(id){
   if(id===SUPER_ADMIN_GAFETE){ alert("No puedes eliminar al Super Admin."); return; }
   await deleteDoc(doc(db, USERS_COLLECTION_NAME, id));
   cargarUsuarios();
 }
+
+// --- AJUSTE: EDITAR USUARIO (editar 'area') ---
 window.editarUsuario=async function(id){
   const userRef = doc(db, USERS_COLLECTION_NAME, id);
   const userSnap = await getDoc(userRef);
@@ -392,11 +424,14 @@ window.editarUsuario=async function(id){
   if(!userSnap.exists()) return;
   const data = userSnap.data();
   
-  const newNombre=prompt("Editar nombre:",data.nombre);
-  const newRol=prompt("Editar rol (empleado/administrador):",data.rol);
+  const newNombre=prompt("Editar nombre:", data.nombre);
+  const newRol=prompt("Editar rol (empleado/administrador):", data.rol);
+  // Nuevo prompt para el área
+  const newArea = prompt("Editar área (e.g., Almacen, Logistica, Produccion):", data.area || "");
   
-  if(newNombre && newRol){ 
-    await setDoc(doc(db, USERS_COLLECTION_NAME, id),{ nombre:newNombre, gafete:data.gafete, rol:newRol }); 
+  // Validamos que ninguno sea 'null' (que no haya presionado cancelar)
+  if(newNombre && newRol && newArea !== null){ 
+    await setDoc(doc(db, USERS_COLLECTION_NAME, id),{ nombre:newNombre, gafete:data.gafete, rol:newRol, area: newArea }); 
     cargarUsuarios(); 
   }
 }
@@ -420,7 +455,7 @@ window.confirmarEliminarTarima = function(docId) {
   abrirModalConfirmacion(mensaje, onConfirmCallback);
 }
 
-// --- TARIMAS ---
+// --- TARIMAS (Sin cambios en esta sección) ---
 function mostrarConfirmacionTarimas(){
   setView(`
     <p class="brand-title">CORNING</p>
@@ -583,7 +618,6 @@ async function getHistoricoMap() {
   return historicoMap;
 }
 
-// === FUNCIÓN MODIFICADA: buildTarimasHtml (con resaltado de orden) ===
 function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
   let html = `<h3>${isAdmin ? 'Tarimas Confirmadas (Todas)' : 'Mis Tarimas Confirmadas'}</h3>`;
   
@@ -634,14 +668,13 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
     Object.entries(grouped).forEach(([orden, bx_array]) => {
       let bxHtmlList = '';
       
-      // --- AJUSTE: Contamos recibidos para ESTA ORDEN ---
       let ordenRecibidosCount = 0;
       
       bx_array.forEach(bxCode => {
         const historicoEntry = historicoMap.get(bxCode);
         
         if (historicoEntry) {
-          ordenRecibidosCount++; // Contamos solo los de esta orden
+          ordenRecibidosCount++;
           const fechaRecibido = formatarFechaHora(historicoEntry.fecha);
           const grRecibido = historicoEntry.gr || 'N/A';
           bxHtmlList += `<li style="color: #90EE90; font-weight: bold; background: rgba(76, 175, 80, 0.2);">${bxCode} 
@@ -654,17 +687,13 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
         }
       });
       
-      // --- AJUSTE: Determinamos el estilo del <summary> de la orden ---
       let orderStatusStyle = '';
       if (bx_array.length > 0) {
           if (ordenRecibidosCount === 0) {
-              // Si NINGUNO de esta orden se ha recibido = ROJO
               orderStatusStyle = 'color: #FFCDD2; font-weight: bold;'; 
           } else if (ordenRecibidosCount < bx_array.length) {
-              // Si ALGUNOS (pero no todos) se han recibido = AMARILLO
               orderStatusStyle = 'color: #FFEB3B; font-weight: bold;'; 
           }
-          // Si (ordenRecibidosCount === bx_array.length) = COMPLETA, no se aplica estilo (blanco)
       }
       
       detallesHTML += `<details>
