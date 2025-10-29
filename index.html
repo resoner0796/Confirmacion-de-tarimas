@@ -567,15 +567,21 @@ async function escanearCaja(){
   showScanFeedback(`✅ ${codigo} escaneada`, 'success');
 }
 
+// --- AJUSTE: CONFIRMAR TARIMA (guardar 'area') ---
 async function confirmarTarima(){
   if(!tarimaActual||cajasTarima.length===0){ updateStatus("❌ No hay tarima activa o sin cajas",'error'); return; }
+  
+  // ¡AQUÍ ESTÁ LA MAGIA!
+  // Añadimos el 'area' del usuario actual al documento de la tarima.
   await addDoc(collection(db,"tarimas_confirmadas"),{
     folio: tarimaActual.folio,
     gafete: usuarioActual.gafete,
     usuario: usuarioActual.nombre,
+    area: usuarioActual.area || 'Indefinida', // <-- ¡NUEVO CAMPO!
     fecha: Timestamp.now(), 
     cajas:cajasTarima
   });
+
   updateStatus('');
   
   abrirModal(`<p style="font-size: 1.2em; text-align: center; line-height: 1.5;">
@@ -619,13 +625,11 @@ async function getHistoricoMap() {
   return historicoMap;
 }
 
-// --- AJUSTE: buildTarimasHtml AHORA ACEPTA UNA LISTA DE OBJETOS ---
 function buildTarimasHtml(tarimasList, historicoMap, isAdmin = false) {
   let html = `<h3>${isAdmin ? 'Tarimas Confirmadas' : 'Mis Tarimas Confirmadas'}</h3>`;
   
   if (!tarimasList || tarimasList.length === 0) {
     html += `<p>No se encontraron tarimas${isAdmin ? '' : ' confirmadas por ti'}.</p>`;
-    // Si es admin, mostramos el título del filtro aunque esté vacío
     if(isAdmin) {
          html = `<h3>Tarimas Confirmadas</h3>` + 
                 `<p style="margin-top: -10px; font-size: 0.9em; color: #ccc;">(Filtro actual)</p>` + 
@@ -636,7 +640,6 @@ function buildTarimasHtml(tarimasList, historicoMap, isAdmin = false) {
   
   html += "<ul>";
   
-  // La lista ya está pre-procesada, solo la ordenamos
   const tarimas = tarimasList.sort((a, b) => 
       (b.fecha ? b.fecha.seconds : 0) - (a.fecha ? a.fecha.seconds : 0)
     );
@@ -713,7 +716,9 @@ function buildTarimasHtml(tarimasList, historicoMap, isAdmin = false) {
     
     html += `<li class="tarimaBox">`;
     if (isAdmin) {
-      // Mostramos el área junto al creador
+      // Usamos t.area (el área del usuario actual) para el filtro,
+      // pero podríamos mostrar t.area (el área de la tarima) si quisiéramos.
+      // Dejamos t.area (del usuario) para que el filtro sea consistente.
       html += `<b>${folio}</b> ${statusBadgeHtml} (Creado por: ${creador} - ${t.area || 'N/A'})
         <button class="btn-danger" onclick="confirmarEliminarTarima('${t.id}')" style="float:right; width:auto; padding: 5px 10px; margin-top:0; font-size: 12px;">❌</button>`;
     } else {
@@ -732,7 +737,7 @@ function buildTarimasHtml(tarimasList, historicoMap, isAdmin = false) {
   return html;
 }
 
-// --- AJUSTE: CONSULTAR MIS TARIMAS (adaptado a la nueva 'buildTarimasHtml') ---
+// CONSULTAR MIS TARIMAS (Empleado)
 async function consultarMisTarimas() {
   if (!usuarioActual) {
     abrirModal("<h3>Error</h3><p>No se ha podido identificar al usuario.</p>");
@@ -749,7 +754,6 @@ async function consultarMisTarimas() {
   const q = query(tarimasRef, where("gafete", "==", gafeteActual));
   const snapshot = await getDocs(q);
   
-  // Convertimos los docs al formato de lista que espera la función
   const tarimasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   
   const html = buildTarimasHtml(tarimasList, historicoMap, false);
@@ -758,13 +762,13 @@ async function consultarMisTarimas() {
 }
 
 
-// --- AJUSTE: CONSULTAR TARIMAS (Admin con FILTRO DE ÁREA) ---
+// CONSULTAR TARIMAS (Admin)
 async function consultarTarimas(){
   abrirModal("<h3>Cargando Datos...</h3>");
 
   // 1. Cargar Mapa de Usuarios (gafete -> area) y Set de Áreas
   const userAreaMap = new Map();
-  const userAreas = new Set(); // Para el dropdown
+  const userAreas = new Set();
   try {
     const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION_NAME));
     usersSnapshot.forEach(doc => {
@@ -780,12 +784,13 @@ async function consultarTarimas(){
   // 2. Cargar Histórico de BX
   const historicoMap = await getHistoricoMap();
 
-  // 3. Cargar TODAS las tarimas y ENRIQUECERLAS con el área
+  // 3. Cargar TODAS las tarimas y ENRIQUECERLAS con el área del *usuario*
   const snapshot = await getDocs(collection(db, "tarimas_confirmadas"));
   const allTarimasEnriched = snapshot.docs.map(doc => {
     const data = doc.data();
-    const area = userAreaMap.get(data.gafete) || 'Desconocida'; // Fallback
-    return { id: doc.id, ...data, area: area }; // Añadimos el área al objeto
+    // Importante: El filtro usa el área ACTUAL del usuario
+    const userArea = userAreaMap.get(data.gafete) || 'Desconocida';
+    return { id: doc.id, ...data, area: userArea };
   });
 
   // 4. Construir el HTML del Modal (con el dropdown de filtro)
@@ -805,18 +810,16 @@ async function consultarTarimas(){
   
   let listContainerHtml = `<div id="tarimasListContainer"></div>`;
   
-  abrirModal(dropdownHtml + listContainerHtml); // Abrir modal con la UI base
+  abrirModal(dropdownHtml + listContainerHtml);
 
   // 5. Definir la función que renderiza la lista filtrada
   function renderFilteredTarimas() {
     const selectedArea = document.getElementById('areaFilterSelect').value;
     
-    // Filtramos la lista ENRIQUECIDA
     const filteredTarimas = allTarimasEnriched.filter(t => 
       selectedArea === 'Todas' || t.area === selectedArea
     );
     
-    // Llamamos a buildTarimasHtml con la lista ya filtrada
     const html = buildTarimasHtml(filteredTarimas, historicoMap, true); 
     
     document.getElementById('tarimasListContainer').innerHTML = html;
