@@ -51,6 +51,21 @@ input, select {
   background: rgba(255,255,255,0.15);
   color: #fff;
 }
+/* Estilo específico para el select de filtro en el modal */
+#areaFilterSelect {
+    width: auto; 
+    padding: 8px 12px;
+    margin: 0 0 15px 10px;
+    color: #000; /* Texto negro para legibilidad sobre fondo claro */
+    background: #eeeeee; /* Fondo claro para el select */
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.2);
+}
+/* Opciones del select */
+#areaFilterSelect option {
+    color: #000;
+    background: #fff;
+}
 button {
   width: 100%;
   padding: 15px;
@@ -256,7 +271,6 @@ function mostrarLogin(){
   document.getElementById('gafeteInput').addEventListener('keypress',e=>{ if(e.key==='Enter') verificarGafete(); });
 }
 
-// --- AJUSTE: VERIFICAR GAFETE (Migración con 'area') ---
 async function verificarGafete(){
   const gafete = document.getElementById('gafeteInput').value.trim();
   if(!gafete){ updateStatus("Ingresa tu gafete",'error'); return; }
@@ -285,20 +299,17 @@ async function verificarGafete(){
       return; 
     }
 
-    // Si es Super Admin y no existe, crearlo con área "Sistemas"
     if(gafete === SUPER_ADMIN_GAFETE && !userData){
       userData = { nombre:"Super Admin", gafete, rol:"administrador", area: "Sistemas" };
       await setDoc(doc(db, USERS_COLLECTION_NAME, gafete), userData);
       foundIn = 'new';
     }
     
-    // Si se encontró en 'users', migrarlo a 'users_tarimas' con área "Indefinida"
     if (foundIn === 'old') {
       console.log(`Migrando usuario ${gafete} a ${USERS_COLLECTION_NAME}...`);
-      // Añade el campo 'area' durante la migración
       const userDataToMigrate = { ...userData, area: userData.area || 'Indefinida' };
       await setDoc(doc(db, USERS_COLLECTION_NAME, gafete), userDataToMigrate);
-      userData = userDataToMigrate; // Actualiza la variable local para la sesión actual
+      userData = userDataToMigrate;
     }
 
     usuarioActual = userData;
@@ -333,7 +344,6 @@ function mostrarAdministracion(){
   document.getElementById('btnSalir').onclick=cerrarSesion;
 }
 
-// --- AJUSTE: MODAL GESTIÓN DE USUARIOS (con 'area') ---
 function mostrarGestionUsuarios() {
   const html = `
     <h2>👨‍💼 Gestión de Usuarios</h2>
@@ -365,7 +375,7 @@ function mostrarGestionUsuarios() {
   cargarUsuarios();
 }
 
-// --- AJUSTE: CARGAR USUARIOS (mostrar 'area') ---
+
 async function cargarUsuarios(){
   const lista=document.getElementById('listaUsuarios');
   if (!lista) return;
@@ -375,7 +385,6 @@ async function cargarUsuarios(){
   let html='';
   snapshot.forEach(docu=>{
     const d=docu.data();
-    // Mostramos el rol y el área. Usamos fallback "Sin Área"
     html+=`<li>${d.nombre} (${d.rol} - ${d.area || 'Sin Área'}) - Gafete: ${d.gafete}
       <div class="user-actions">
         <button class="btn-green" onclick="editarUsuario('${docu.id}')">✏️</button>
@@ -386,37 +395,31 @@ async function cargarUsuarios(){
   lista.innerHTML=html||'<li>No hay usuarios registrados.</li>';
 }
 
-// --- AJUSTE: AGREGAR USUARIO (guardar 'area') ---
 async function agregarUsuario(){
   const nombre=document.getElementById('nombreUsuario').value.trim();
   const gafete=document.getElementById('gafeteUsuario').value.trim();
   const rol=document.getElementById('rolUsuario').value;
-  const area=document.getElementById('areaUsuario').value; // <-- NUEVA LÍNEA
+  const area=document.getElementById('areaUsuario').value;
   
-  // Validamos que todos los campos estén llenos (incluida el área)
   if(!nombre || !gafete || !area || !rol){ 
     updateStatus('❌ Completa todos los campos.','error'); 
     return; 
   }
   
-  // Guardamos el objeto con el 'area'
   await setDoc(doc(db, USERS_COLLECTION_NAME, gafete),{ nombre, gafete, rol, area });
   
   updateStatus('✅ Usuario agregado.','success');
   document.getElementById('nombreUsuario').value='';
   document.getElementById('gafeteUsuario').value='';
-  document.getElementById('areaUsuario').value=''; // <-- NUEVA LÍNEA (resetear select)
+  document.getElementById('areaUsuario').value='';
   document.getElementById('rolUsuario').value='empleado';
   cargarUsuarios();
 }
-
 window.eliminarUsuario=async function(id){
   if(id===SUPER_ADMIN_GAFETE){ alert("No puedes eliminar al Super Admin."); return; }
   await deleteDoc(doc(db, USERS_COLLECTION_NAME, id));
   cargarUsuarios();
 }
-
-// --- AJUSTE: EDITAR USUARIO (editar 'area') ---
 window.editarUsuario=async function(id){
   const userRef = doc(db, USERS_COLLECTION_NAME, id);
   const userSnap = await getDoc(userRef);
@@ -426,10 +429,8 @@ window.editarUsuario=async function(id){
   
   const newNombre=prompt("Editar nombre:", data.nombre);
   const newRol=prompt("Editar rol (empleado/administrador):", data.rol);
-  // Nuevo prompt para el área
   const newArea = prompt("Editar área (e.g., Almacen, Logistica, Produccion):", data.area || "");
   
-  // Validamos que ninguno sea 'null' (que no haya presionado cancelar)
   if(newNombre && newRol && newArea !== null){ 
     await setDoc(doc(db, USERS_COLLECTION_NAME, id),{ nombre:newNombre, gafete:data.gafete, rol:newRol, area: newArea }); 
     cargarUsuarios(); 
@@ -455,7 +456,7 @@ window.confirmarEliminarTarima = function(docId) {
   abrirModalConfirmacion(mensaje, onConfirmCallback);
 }
 
-// --- TARIMAS (Sin cambios en esta sección) ---
+// --- TARIMAS ---
 function mostrarConfirmacionTarimas(){
   setView(`
     <p class="brand-title">CORNING</p>
@@ -618,18 +619,25 @@ async function getHistoricoMap() {
   return historicoMap;
 }
 
-function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
-  let html = `<h3>${isAdmin ? 'Tarimas Confirmadas (Todas)' : 'Mis Tarimas Confirmadas'}</h3>`;
+// --- AJUSTE: buildTarimasHtml AHORA ACEPTA UNA LISTA DE OBJETOS ---
+function buildTarimasHtml(tarimasList, historicoMap, isAdmin = false) {
+  let html = `<h3>${isAdmin ? 'Tarimas Confirmadas' : 'Mis Tarimas Confirmadas'}</h3>`;
   
-  if (!tarimasDocs || tarimasDocs.length === 0) {
+  if (!tarimasList || tarimasList.length === 0) {
     html += `<p>No se encontraron tarimas${isAdmin ? '' : ' confirmadas por ti'}.</p>`;
+    // Si es admin, mostramos el título del filtro aunque esté vacío
+    if(isAdmin) {
+         html = `<h3>Tarimas Confirmadas</h3>` + 
+                `<p style="margin-top: -10px; font-size: 0.9em; color: #ccc;">(Filtro actual)</p>` + 
+                html;
+    }
     return html;
   }
   
   html += "<ul>";
   
-  const tarimas = tarimasDocs.map(doc => ({ id: doc.id, ...doc.data() }))
-    .sort((a, b) => 
+  // La lista ya está pre-procesada, solo la ordenamos
+  const tarimas = tarimasList.sort((a, b) => 
       (b.fecha ? b.fecha.seconds : 0) - (a.fecha ? a.fecha.seconds : 0)
     );
 
@@ -667,7 +675,6 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
     let detallesHTML = "";
     Object.entries(grouped).forEach(([orden, bx_array]) => {
       let bxHtmlList = '';
-      
       let ordenRecibidosCount = 0;
       
       bx_array.forEach(bxCode => {
@@ -706,7 +713,8 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
     
     html += `<li class="tarimaBox">`;
     if (isAdmin) {
-      html += `<b>${folio}</b> ${statusBadgeHtml} (Creado por: ${creador})
+      // Mostramos el área junto al creador
+      html += `<b>${folio}</b> ${statusBadgeHtml} (Creado por: ${creador} - ${t.area || 'N/A'})
         <button class="btn-danger" onclick="confirmarEliminarTarima('${t.id}')" style="float:right; width:auto; padding: 5px 10px; margin-top:0; font-size: 12px;">❌</button>`;
     } else {
       html += `<b>${folio}</b> ${statusBadgeHtml}`;
@@ -724,7 +732,7 @@ function buildTarimasHtml(tarimasDocs, historicoMap, isAdmin = false) {
   return html;
 }
 
-// CONSULTAR MIS TARIMAS (Empleado)
+// --- AJUSTE: CONSULTAR MIS TARIMAS (adaptado a la nueva 'buildTarimasHtml') ---
 async function consultarMisTarimas() {
   if (!usuarioActual) {
     abrirModal("<h3>Error</h3><p>No se ha podido identificar al usuario.</p>");
@@ -741,22 +749,86 @@ async function consultarMisTarimas() {
   const q = query(tarimasRef, where("gafete", "==", gafeteActual));
   const snapshot = await getDocs(q);
   
-  const html = buildTarimasHtml(snapshot.docs, historicoMap, false);
+  // Convertimos los docs al formato de lista que espera la función
+  const tarimasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  
+  const html = buildTarimasHtml(tarimasList, historicoMap, false);
   
   abrirModal(html);
 }
 
 
-// CONSULTAR TARIMAS (Admin)
+// --- AJUSTE: CONSULTAR TARIMAS (Admin con FILTRO DE ÁREA) ---
 async function consultarTarimas(){
-  abrirModal("<h3>Cargando Todas las Tarimas...</h3>");
+  abrirModal("<h3>Cargando Datos...</h3>");
 
+  // 1. Cargar Mapa de Usuarios (gafete -> area) y Set de Áreas
+  const userAreaMap = new Map();
+  const userAreas = new Set(); // Para el dropdown
+  try {
+    const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION_NAME));
+    usersSnapshot.forEach(doc => {
+      const data = doc.data();
+      const area = data.area || 'Indefinida';
+      userAreaMap.set(data.gafete, area);
+      userAreas.add(area);
+    });
+  } catch (e) {
+    console.error("Error al cargar usuarios: ", e);
+  }
+
+  // 2. Cargar Histórico de BX
   const historicoMap = await getHistoricoMap();
+
+  // 3. Cargar TODAS las tarimas y ENRIQUECERLAS con el área
   const snapshot = await getDocs(collection(db, "tarimas_confirmadas"));
-  const html = buildTarimasHtml(snapshot.docs, historicoMap, true);
+  const allTarimasEnriched = snapshot.docs.map(doc => {
+    const data = doc.data();
+    const area = userAreaMap.get(data.gafete) || 'Desconocida'; // Fallback
+    return { id: doc.id, ...data, area: area }; // Añadimos el área al objeto
+  });
+
+  // 4. Construir el HTML del Modal (con el dropdown de filtro)
+  let dropdownHtml = `
+    <div style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+      <h3>Tarimas Confirmadas</h3>
+      <div style="display: flex; align-items: center;">
+        <label for="areaFilterSelect" style="margin-right: 10px; font-weight: bold; font-size: 0.9em;">Filtrar:</label>
+        <select id="areaFilterSelect">
+          <option value="Todas">Todas las Áreas</option>
+          ${[...userAreas].sort().map(area => `<option value="${area}">${area}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <hr style="border-color: rgba(255,255,255,0.2); margin-top: 0;">
+  `;
   
-  abrirModal(html);
+  let listContainerHtml = `<div id="tarimasListContainer"></div>`;
+  
+  abrirModal(dropdownHtml + listContainerHtml); // Abrir modal con la UI base
+
+  // 5. Definir la función que renderiza la lista filtrada
+  function renderFilteredTarimas() {
+    const selectedArea = document.getElementById('areaFilterSelect').value;
+    
+    // Filtramos la lista ENRIQUECIDA
+    const filteredTarimas = allTarimasEnriched.filter(t => 
+      selectedArea === 'Todas' || t.area === selectedArea
+    );
+    
+    // Llamamos a buildTarimasHtml con la lista ya filtrada
+    const html = buildTarimasHtml(filteredTarimas, historicoMap, true); 
+    
+    document.getElementById('tarimasListContainer').innerHTML = html;
+  }
+  
+  // 6. Añadir el listener al select
+  document.getElementById('areaFilterSelect').onchange = renderFilteredTarimas;
+  
+  // 7. Cargar la lista inicial (con "Todas")
+  renderFilteredTarimas();
 }
+
 
 // --- INICIO ---
 mostrarLogin();
