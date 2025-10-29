@@ -162,8 +162,9 @@ details summary { cursor:pointer; font-weight:bold; }
 </div>
 
 <script type="module">
+// --- 1. AJUSTE: Importamos 'updateDoc' ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc, Timestamp, query, where, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc, Timestamp, query, where, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDtlj3ppT9WBGMR60SZx0TZmAo3BXQWDX0",
@@ -456,6 +457,90 @@ window.confirmarEliminarTarima = function(docId) {
   abrirModalConfirmacion(mensaje, onConfirmCallback);
 }
 
+
+// --- 2. ¡AQUÍ ESTÁ EL SCRIPT DE MIGRACIÓN! ---
+// Lo pones en 'window' para poder llamarlo desde la consola.
+window.actualizarTarimasAntiguas = async function() {
+    if (!usuarioActual || usuarioActual.rol !== "administrador") {
+        console.error("Debes ser administrador para ejecutar esta función.");
+        alert("Debes ser administrador para ejecutar esta función.");
+        return;
+    }
+
+    if (!confirm("¿Estás seguro de que quieres actualizar TODAS las tarimas sin área? Esta acción es masiva y no se puede deshacer.")) {
+        return;
+    }
+
+    console.log("Iniciando migración de tarimas...");
+    abrirModal("<h3>Migrando tarimas...</h3><p>Esto puede tardar unos segundos. Revisa la consola para ver el progreso.</p>");
+
+    let userAreaMap = new Map();
+
+    // 1. Cargar mapa de usuarios (gafete -> area)
+    try {
+        const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION_NAME));
+        usersSnapshot.forEach(doc => {
+            const data = doc.data();
+            userAreaMap.set(data.gafete, data.area || 'Indefinida');
+        });
+        console.log("Mapa de usuarios cargado:", userAreaMap);
+    } catch (e) {
+        console.error("Error al cargar usuarios:", e);
+        abrirModal("<h3>Error</h3><p>No se pudo cargar el mapa de usuarios. Revisa la consola.</p>");
+        return;
+    }
+
+    // 2. Cargar TODAS las tarimas
+    const tarimasRef = collection(db, "tarimas_confirmadas");
+    const tarimasSnapshot = await getDocs(tarimasRef);
+
+    let tarimasActualizadas = 0;
+    let tarimasOmitidas = 0;
+    
+    // 3. Iterar y preparar actualizaciones
+    const updatePromises = [];
+    tarimasSnapshot.forEach(tarimaDoc => {
+        const tarimaData = tarimaDoc.data();
+        
+        // 4. Checar si ya tiene el campo 'area'
+        if (tarimaData.area) {
+            tarimasOmitidas++;
+            return; // Ya tiene área, omitir
+        }
+
+        // 5. No tiene área. Buscarla en el mapa.
+        const gafeteCreador = tarimaData.gafete;
+        const areaAsignada = userAreaMap.get(gafeteCreador) || 'Desconocida'; // Fallback
+
+        // 6. Preparar la actualización
+        console.log(`Actualizando Tarima ${tarimaDoc.id} (Folio: ${tarimaData.folio}) -> gafete ${gafeteCreador} -> Área: ${areaAsignada}`);
+        const tarimaDocRef = doc(db, "tarimas_confirmadas", tarimaDoc.id);
+        updatePromises.push(
+            updateDoc(tarimaDocRef, {
+                area: areaAsignada
+            })
+        );
+        tarimasActualizadas++;
+    });
+
+    // 7. Ejecutar todas las actualizaciones en paralelo
+    try {
+        await Promise.all(updatePromises);
+        const mensajeFinal = `✅ Migración completada.
+        - ${tarimasActualizadas} tarimas fueron actualizadas.
+        - ${tarimasOmitidas} tarimas ya tenían área y fueron omitidas.`;
+        
+        console.log(mensajeFinal);
+        abrirModal(`<p style="font-size: 1.2em; text-align: center; line-height: 1.5;">${mensajeFinal.replace(/\n/g, '<br>')}</p>`);
+
+    } catch (e) {
+        console.error("Error durante la actualización masiva:", e);
+        abrirModal("<h3>Error</h3><p>Ocurrió un error al actualizar las tarimas. Revisa la consola.</p>");
+    }
+}
+// --- FIN DEL SCRIPT DE MIGRACIÓN ---
+
+
 // --- TARIMAS ---
 function mostrarConfirmacionTarimas(){
   setView(`
@@ -567,17 +652,16 @@ async function escanearCaja(){
   showScanFeedback(`✅ ${codigo} escaneada`, 'success');
 }
 
-// --- AJUSTE: CONFIRMAR TARIMA (guardar 'area') ---
+// ¡ESTA ES LA FUNCIÓN QUE YA HABÍAMOS AJUSTADO!
+// Guarda el 'area' del usuario actual en la tarima al crearla.
 async function confirmarTarima(){
   if(!tarimaActual||cajasTarima.length===0){ updateStatus("❌ No hay tarima activa o sin cajas",'error'); return; }
   
-  // ¡AQUÍ ESTÁ LA MAGIA!
-  // Añadimos el 'area' del usuario actual al documento de la tarima.
   await addDoc(collection(db,"tarimas_confirmadas"),{
     folio: tarimaActual.folio,
     gafete: usuarioActual.gafete,
     usuario: usuarioActual.nombre,
-    area: usuarioActual.area || 'Indefinida', // <-- ¡NUEVO CAMPO!
+    area: usuarioActual.area || 'Indefinida', // Guarda el área
     fecha: Timestamp.now(), 
     cajas:cajasTarima
   });
@@ -716,11 +800,12 @@ function buildTarimasHtml(tarimasList, historicoMap, isAdmin = false) {
     
     html += `<li class="tarimaBox">`;
     if (isAdmin) {
-      // Usamos t.area (el área del usuario actual) para el filtro,
-      // pero podríamos mostrar t.area (el área de la tarima) si quisiéramos.
-      // Dejamos t.area (del usuario) para que el filtro sea consistente.
-      html += `<b>${folio}</b> ${statusBadgeHtml} (Creado por: ${creador} - ${t.area || 'N/A'})
-        <button class="btn-danger" onclick="confirmarEliminarTarima('${t.id}')" style="float:right; width:auto; padding: 5px 10px; margin-top:0; font-size: 12px;">❌</button>`;
+        // AHORA el t.area del filtro es el área DEL USUARIO, no de la tarima.
+        // PERO mostramos el área DE LA TARIMA (t.area) si existe, o el área del usuario como fallback.
+        const areaMostrada = t.area || userAreaMap.get(creador) || 'N/A';
+        
+        html += `<b>${folio}</b> ${statusBadgeHtml} (Creado por: ${creador} - ${areaMostrada})
+            <button class="btn-danger" onclick="confirmarEliminarTarima('${t.id}')" style="float:right; width:auto; padding: 5px 10px; margin-top:0; font-size: 12px;">❌</button>`;
     } else {
       html += `<b>${folio}</b> ${statusBadgeHtml}`;
     }
@@ -784,13 +869,15 @@ async function consultarTarimas(){
   // 2. Cargar Histórico de BX
   const historicoMap = await getHistoricoMap();
 
-  // 3. Cargar TODAS las tarimas y ENRIQUECERLAS con el área del *usuario*
+  // 3. Cargar TODAS las tarimas
   const snapshot = await getDocs(collection(db, "tarimas_confirmadas"));
+  
+  // AHORA el filtro se basa en el 'area' guardada EN LA TARIMA.
   const allTarimasEnriched = snapshot.docs.map(doc => {
     const data = doc.data();
-    // Importante: El filtro usa el área ACTUAL del usuario
-    const userArea = userAreaMap.get(data.gafete) || 'Desconocida';
-    return { id: doc.id, ...data, area: userArea };
+    // Usamos el área de la tarima (que ya guardamos o migramos)
+    const area = data.area || 'Desconocida';
+    return { id: doc.id, ...data, area: area };
   });
 
   // 4. Construir el HTML del Modal (con el dropdown de filtro)
