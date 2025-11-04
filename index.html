@@ -459,7 +459,6 @@ window.confirmarEliminarTarima = function(docId) {
 
 
 // --- 2. ¡AQUÍ ESTÁ EL SCRIPT DE MIGRACIÓN! ---
-// Lo pones en 'window' para poder llamarlo desde la consola.
 window.actualizarTarimasAntiguas = async function() {
     if (!usuarioActual || usuarioActual.rol !== "administrador") {
         console.error("Debes ser administrador para ejecutar esta función.");
@@ -476,7 +475,6 @@ window.actualizarTarimasAntiguas = async function() {
 
     let userAreaMap = new Map();
 
-    // 1. Cargar mapa de usuarios (gafete -> area)
     try {
         const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION_NAME));
         usersSnapshot.forEach(doc => {
@@ -490,29 +488,24 @@ window.actualizarTarimasAntiguas = async function() {
         return;
     }
 
-    // 2. Cargar TODAS las tarimas
     const tarimasRef = collection(db, "tarimas_confirmadas");
     const tarimasSnapshot = await getDocs(tarimasRef);
 
     let tarimasActualizadas = 0;
     let tarimasOmitidas = 0;
     
-    // 3. Iterar y preparar actualizaciones
     const updatePromises = [];
     tarimasSnapshot.forEach(tarimaDoc => {
         const tarimaData = tarimaDoc.data();
         
-        // 4. Checar si ya tiene el campo 'area'
         if (tarimaData.area) {
             tarimasOmitidas++;
-            return; // Ya tiene área, omitir
+            return; 
         }
 
-        // 5. No tiene área. Buscarla en el mapa.
         const gafeteCreador = tarimaData.gafete;
-        const areaAsignada = userAreaMap.get(gafeteCreador) || 'Desconocida'; // Fallback
+        const areaAsignada = userAreaMap.get(gafeteCreador) || 'Desconocida'; 
 
-        // 6. Preparar la actualización
         console.log(`Actualizando Tarima ${tarimaDoc.id} (Folio: ${tarimaData.folio}) -> gafete ${gafeteCreador} -> Área: ${areaAsignada}`);
         const tarimaDocRef = doc(db, "tarimas_confirmadas", tarimaDoc.id);
         updatePromises.push(
@@ -523,7 +516,6 @@ window.actualizarTarimasAntiguas = async function() {
         tarimasActualizadas++;
     });
 
-    // 7. Ejecutar todas las actualizaciones en paralelo
     try {
         await Promise.all(updatePromises);
         const mensajeFinal = `✅ Migración completada.
@@ -630,30 +622,31 @@ function eliminarCaja(codigo){
 }
 window.eliminarCaja=eliminarCaja;
 
+// --- ¡AQUÍ ESTÁ EL AJUSTE QUE PEDISTE! ---
 async function escanearCaja(){
   const codigo=document.getElementById('codigoTarima').value.trim().toUpperCase();
   
   if(!codigo.startsWith("BX")){ 
     showScanFeedback("❌ El código debe empezar con BX", 'error'); 
+    document.getElementById('codigoTarima').value=''; // <-- ¡LÍNEA AÑADIDA!
     return; 
   }
 
   if (cajasTarima.some(caja => caja.codigoCaja === codigo)) {
     showScanFeedback(`❌ El BX ${codigo} ya fue escaneado en esta tarima.`, 'error');
-    document.getElementById('codigoTarima').value='';
+    document.getElementById('codigoTarima').value=''; // <-- Esta línea ya estaba (y está bien)
     return;
   }
   
   const orden=codigo.slice(2,12);
   cajasTarima.push({codigoCaja:codigo, numeroOrden:orden});
   renderTarima();
-  document.getElementById('codigoTarima').value='';
+  document.getElementById('codigoTarima').value=''; // Limpia el input en caso de éxito
   
   showScanFeedback(`✅ ${codigo} escaneada`, 'success');
 }
+// --- FIN DEL AJUSTE ---
 
-// ¡ESTA ES LA FUNCIÓN QUE YA HABÍAMOS AJUSTADO!
-// Guarda el 'area' del usuario actual en la tarima al crearla.
 async function confirmarTarima(){
   if(!tarimaActual||cajasTarima.length===0){ updateStatus("❌ No hay tarima activa o sin cajas",'error'); return; }
   
