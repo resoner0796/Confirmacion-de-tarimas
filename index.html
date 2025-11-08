@@ -458,7 +458,6 @@ window.confirmarEliminarTarima = function(docId) {
 }
 
 
-// --- 2. ¡AQUÍ ESTÁ EL SCRIPT DE MIGRACIÓN! ---
 window.actualizarTarimasAntiguas = async function() {
     if (!usuarioActual || usuarioActual.rol !== "administrador") {
         console.error("Debes ser administrador para ejecutar esta función.");
@@ -535,15 +534,23 @@ window.actualizarTarimasAntiguas = async function() {
 
 // --- TARIMAS ---
 function mostrarConfirmacionTarimas(){
+  // --- CAMBIO AQUÍ: Añadido btnCargarTxt y cambiado btnEscanear a btn-blue ---
   setView(`
     <p class="brand-title">CORNING</p>
     <div class="card">
       <h2>✅ Registrar Tarima</h2>
-      <button id="btnNuevaTarima" class="btn-orange">➕ Crear Nueva Tarima</button>
+      <button id="btnNuevaTarima" class="btn-orange">➕ Crear Nueva Tarima Manual</button>
+      
+      <!-- NUEVO BOTÓN PARA CARGAR TXT -->
+      <button id="btnCargarTxt" class="btn-green">Cargar Tarima desde .txt</button>
+      
       <h4 id="folioActual"></h4>
       <div id="scanFeedback"></div>
-      <input id="codigoTarima" placeholder="Escanear BX...">
-      <button id="btnEscanear" class="btn-green">Agregar Caja</button>
+      <input id="codigoTarima" placeholder="Escanear BX (modo manual)...">
+      
+      <!-- CAMBIO DE CLASE: de btn-green a btn-blue -->
+      <button id="btnEscanear" class="btn-blue">Agregar Caja (Manual)</button>
+      
       <p>Contador de cajas: <span id="counter">0</span></p>
       <hr>
       <h4>Cajas agrupadas por orden:</h4>
@@ -555,14 +562,100 @@ function mostrarConfirmacionTarimas(){
       <div id="statusMessage"></div>
     </div>
   `);
-  document.getElementById('btnNuevaTarima').onclick=crearNuevaTarima;
-  document.getElementById('btnEscanear').onclick=escanearCaja;
+  
+  document.getElementById('btnNuevaTarima').onclick = crearNuevaTarima;
+  
+  // --- NUEVO Event Listener ---
+  document.getElementById('btnCargarTxt').onclick = cargarDesdeTxt;
+  
+  document.getElementById('btnEscanear').onclick = escanearCaja;
   document.getElementById('codigoTarima').addEventListener('keypress',e=>{ if(e.key==='Enter') escanearCaja(); });
-  document.getElementById('btnConfirmar').onclick=confirmarTarima;
+  document.getElementById('btnConfirmar').onclick = confirmarTarima;
   document.getElementById('btnMisTarimas').onclick = consultarMisTarimas;
-  document.getElementById('btnSalir').onclick=cerrarSesion;
+  document.getElementById('btnSalir').onclick = cerrarSesion;
   actualizarContador();
 }
+
+// --- NUEVA FUNCIÓN ---
+/**
+ * Inicia el flujo para cargar una tarima desde un archivo .txt
+ */
+async function cargarDesdeTxt() {
+    // 1. Crear un input de archivo dinámicamente
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.txt, text/plain';
+    fileInput.style.display = 'none';
+
+    // 2. Definir el manejador para cuando se selecciona un archivo
+    fileInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+            showScanFeedback('No se seleccionó ningún archivo', 'error');
+            return;
+        }
+
+        // 3. Crear un FileReader para leer el contenido del .txt
+        const reader = new FileReader();
+        
+        reader.onload = async (event) => {
+            try {
+                // 4. Iniciar una tarima completamente nueva
+                // (await es crucial aquí para que tarimaActual esté listo)
+                await crearNuevaTarima();
+                showScanFeedback('Nueva tarima creada. Cargando códigos...', 'success');
+
+                const textContent = event.target.result;
+                
+                // 5. Procesar el texto
+                const codes = textContent.split('\n')
+                    .map(code => code.trim().toUpperCase()) // Limpia y estandariza
+                    .filter(code => code.startsWith("BX")); // Filtra solo los BX válidos
+                
+                if (codes.length === 0) {
+                    showScanFeedback('No se encontraron códigos BX válidos en el archivo.', 'error');
+                    return;
+                }
+
+                // 6. Eliminar duplicados del archivo
+                const uniqueCodes = [...new Set(codes)];
+                
+                // 7. Llenar el array 'cajasTarima'
+                uniqueCodes.forEach(codigo => {
+                    const orden = codigo.slice(2, 12); // Asume la misma lógica de 10 dígitos
+                    if (orden.length === 10) { // Doble chequeo
+                        cajasTarima.push({ codigoCaja: codigo, numeroOrden: orden });
+                    }
+                });
+
+                // 8. Actualizar la UI
+                renderTarima();
+                actualizarContador();
+                showScanFeedback(`✅ ¡Carga completa! Se agregaron ${uniqueCodes.length} códigos. Revisa y confirma.`, 'success');
+
+            } catch (err) {
+                console.error("Error al procesar el archivo:", err);
+                showScanFeedback('Error al procesar el archivo.', 'error');
+            }
+        };
+        
+        reader.onerror = () => {
+            console.error("Error al leer el archivo:", reader.error);
+            showScanFeedback('No se pudo leer el archivo.', 'error');
+        };
+
+        // 9. Leer el archivo
+        reader.readAsText(file);
+        
+        // 10. Limpiar el input para futuras cargas
+        document.body.removeChild(fileInput);
+    };
+
+    // 11. Añadir y disparar el input
+    document.body.appendChild(fileInput);
+    fileInput.click();
+}
+
 
 async function crearNuevaTarima(){
   const folio=await generarNuevoFolio();
@@ -622,19 +715,23 @@ function eliminarCaja(codigo){
 }
 window.eliminarCaja=eliminarCaja;
 
-// --- ¡AQUÍ ESTÁ EL AJUSTE QUE PEDISTE! ---
 async function escanearCaja(){
   const codigo=document.getElementById('codigoTarima').value.trim().toUpperCase();
   
+  if (!tarimaActual) {
+      showScanFeedback("❌ Primero crea una 'Nueva Tarima Manual'", 'error');
+      return;
+  }
+  
   if(!codigo.startsWith("BX")){ 
     showScanFeedback("❌ El código debe empezar con BX", 'error'); 
-    document.getElementById('codigoTarima').value=''; // <-- ¡LÍNEA AÑADIDA!
+    document.getElementById('codigoTarima').value=''; 
     return; 
   }
 
   if (cajasTarima.some(caja => caja.codigoCaja === codigo)) {
     showScanFeedback(`❌ El BX ${codigo} ya fue escaneado en esta tarima.`, 'error');
-    document.getElementById('codigoTarima').value=''; // <-- Esta línea ya estaba (y está bien)
+    document.getElementById('codigoTarima').value=''; 
     return;
   }
   
@@ -645,7 +742,6 @@ async function escanearCaja(){
   
   showScanFeedback(`✅ ${codigo} escaneada`, 'success');
 }
-// --- FIN DEL AJUSTE ---
 
 async function confirmarTarima(){
   if(!tarimaActual||cajasTarima.length===0){ updateStatus("❌ No hay tarima activa o sin cajas",'error'); return; }
